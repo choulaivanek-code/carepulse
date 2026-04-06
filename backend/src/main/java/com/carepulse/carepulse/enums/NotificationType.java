@@ -1,0 +1,16 @@
+package com.carepulse.carepulse.enums;
+
+public enum NotificationType {
+    TICKET_CREE,
+    POSITION_UPDATE,
+    RAPPEL_15MIN,
+    RAPPEL_5MIN,
+    APPEL_PATIENT,
+    URGENCE_INSEREE,
+    RETARD_GENERAL,
+    NO_SHOW_ALERTE,
+    TICKET_ANNULE,
+    CONSULTATION_TERMINEE,
+    MESSAGE_RECU,
+    SURCHARGE_DETECTEE
+}

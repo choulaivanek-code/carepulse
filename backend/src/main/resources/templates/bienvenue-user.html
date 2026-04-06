@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Bienvenue chez CarePulse</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0fdf4; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: auto; }
+        h1 { color: #16a34a; margin-bottom: 20px; }
+        .btn { display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 20px; }
+        .footer { margin-top: 30px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bienvenue chez CarePulse !</h1>
+        <p>Bonjour <strong th:text="${prenom}">Utilisateur</strong>,</p>
+        <p>Votre compte a été créé avec succès. Vous pouvez désormais prendre vos tickets en ligne et suivre votre attente en temps réel.</p>
+        
+        <a href="http://localhost:5173" class="btn">Accéder à mon espace</a>
+        
+        <p>À très bientôt sur CarePulse.</p>
+        
+        <div class="footer">
+            L'équipe CarePulse
+        </div>
+    </div>
+</body>
+</html>

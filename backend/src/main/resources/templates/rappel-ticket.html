@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Votre tour approche</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fffbeb; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: auto; }
+        h1 { color: #d97706; margin-bottom: 20px; }
+        .alert-box { background: #fff7ed; padding: 20px; border-radius: 8px; border-left: 5px solid #d97706; margin: 20px 0; }
+        .footer { margin-top: 30px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bientôt votre tour !</h1>
+        <p>C'est presque à vous. Merci de vous rapprocher de la salle d'attente.</p>
+        
+        <div class="alert-box">
+            <p>Ticket n° <strong th:text="${numeroTicket}">TK-0000</strong></p>
+            <p>Il ne reste plus que <strong th:text="${position}">2</strong> personnes avant vous.</p>
+        </div>
+        
+        <p>À tout de suite !</p>
+        
+        <div class="footer">
+            L'équipe CarePulse
+        </div>
+    </div>
+</body>
+</html>

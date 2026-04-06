@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --color-background: hsl(210 40% 98%);
+  --color-foreground: hsl(215 25% 14%);
+  --color-card: hsl(0 0% 100%);
+  
+  --color-primary: hsl(199 89% 39%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  
+  --color-secondary: hsl(160 84% 39%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  
+  --color-muted: hsl(210 40% 96%);
+  --color-muted-foreground: hsl(215 16% 47%);
+  
+  --color-accent: hsl(199 95% 95%);
+  --color-accent-foreground: hsl(199 89% 30%);
+  
+  --color-border: hsl(214 32% 91%);
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    background-color: hsl(210, 40%, 98%);
+    color: hsl(215, 25%, 14%);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-extrabold tracking-tight;
+  }
+}

@@ -1,0 +1,102 @@
+﻿
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/agent/UrgenceModal.tsx(2,41): error TS6133: 'Clock' is declared but its value is never read.
+src/components/medecin/CallNextButton.tsx(2,17): error TS6133: 'ArrowRight' is declared but its value is never read.
+src/hooks/useNotifications.ts(19,24): error TS2345: Argument of type 'ApiResponse<Notification[]>' is not assignable to parameter of type 'Notification[]'.
+  Type 'ApiResponse<Notification[]>' is missing the following properties from type 'Notification[]': length, pop, push, concat, and 35 more.
+src/hooks/useQueue.ts(8,11): error TS2339: Property 'subscribe' does not exist on type 'void'.
+src/hooks/useQueue.ts(8,22): error TS2339: Property 'connected' does not exist on type 'void'.
+src/hooks/useQueue.ts(14,26): error TS2339: Property 'getTicketsByFile' does not exist on type '{ getTickets: () => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>; getTicket: (id: number) => Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>; ... 4 more ...; deleteTicket: (id: number) => Promise<...>; }'.
+src/hooks/useQueue.ts(14,63): error TS2551: Property 'getAllTickets' does not exist on type '{ getTickets: () => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>; getTicket: (id: number) => Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>; ... 4 more ...; deleteTicket: (id: number) => Promise<...>; }'. Did you mean 'getTickets'?
+src/hooks/useWebSocket.ts(3,18): error TS1484: 'Message' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/main.tsx(8,24): error TS6133: 'url' is declared but its value is never read.
+src/main.tsx(8,29): error TS6133: 'line' is declared but its value is never read.
+src/main.tsx(8,35): error TS6133: 'col' is declared but its value is never read.
+src/pages/admin/AdminDashboard.tsx(176,39): error TS6133: 'entry' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(2,10): error TS6133: 'Zap' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(2,22): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(2,34): error TS6133: 'AlertTriangle' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(2,49): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(6,3): error TS6133: 'XAxis' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(7,3): error TS6133: 'YAxis' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(8,3): error TS6133: 'CartesianGrid' is declared but its value is never read.
+src/pages/admin/AdminML.tsx(9,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/pages/admin/AdminRapports.tsx(2,30): error TS6133: 'PieChart' is declared but its value is never read.
+src/pages/admin/AdminRapports.tsx(2,40): error TS6133: 'TrendingDown' is declared but its value is never read.
+src/pages/admin/AdminRapports.tsx(2,54): error TS6133: 'Clock' is declared but its value is never read.
+src/pages/admin/AdminRapports.tsx(2,71): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/pages/agent/AgentCreerTicket.tsx(4,3): error TS6133: 'UserPlus' is declared but its value is never read.
+src/pages/agent/AgentCreerTicket.tsx(7,3): error TS6133: 'Clock' is declared but its value is never read.
+src/pages/agent/AgentCreerTicket.tsx(8,3): error TS6133: 'Hospital' is declared but its value is never read.
+src/pages/agent/AgentCreerTicket.tsx(11,3): error TS6133: 'AlertCircle' is declared but its value is never read.
+src/pages/agent/AgentCreerTicket.tsx(48,52): error TS2339: Property 'filter' does not exist on type 'never[] | ApiResponse<User[]>'.
+  Property 'filter' does not exist on type 'ApiResponse<User[]>'.
+src/pages/agent/AgentCreerTicket.tsx(48,59): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/pages/agent/AgentCreerTicket.tsx(79,75): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/pages/agent/AgentCreerTicket.tsx(125,42): error TS2339: Property 'map' does not exist on type 'ApiResponse<FileAttente[]>'.
+src/pages/agent/AgentCreerTicket.tsx(125,46): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/pages/patient/PatientFeedback.tsx(5,3): error TS6133: 'MessageSquare' is declared but its value is never read.
+src/pages/patient/PatientFeedback.tsx(6,3): error TS6133: 'Check' is declared but its value is never read.
+src/pages/patient/PatientHistorique.tsx(5,3): error TS6133: 'Calendar' is declared but its value is never read.
+src/pages/patient/PatientHistorique.tsx(11,3): error TS6133: 'Star' is declared but its value is never read.
+src/pages/patient/PatientHistorique.tsx(28,31): error TS2339: Property 'length' does not exist on type 'never[] | ApiResponse<Ticket[]>'.
+  Property 'length' does not exist on type 'ApiResponse<Ticket[]>'.
+src/pages/patient/PatientHistorique.tsx(29,35): error TS2339: Property 'filter' does not exist on type 'never[] | ApiResponse<Ticket[]>'.
+  Property 'filter' does not exist on type 'ApiResponse<Ticket[]>'.
+src/pages/patient/PatientHistorique.tsx(29,42): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/pages/patient/PatientHistorique.tsx(30,23): error TS7053: Element implicitly has an 'any' type because expression of type '0' can't be used to index type 'never[] | ApiResponse<Ticket[]>'.
+  Property '0' does not exist on type 'never[] | ApiResponse<Ticket[]>'.
+src/pages/patient/PatientHistorique.tsx(74,24): error TS2339: Property 'length' does not exist on type 'never[] | ApiResponse<Ticket[]>'.
+  Property 'length' does not exist on type 'ApiResponse<Ticket[]>'.
+src/pages/patient/PatientHistorique.tsx(79,25): error TS2339: Property 'map' does not exist on type 'never[] | ApiResponse<Ticket[]>'.
+  Property 'map' does not exist on type 'ApiResponse<Ticket[]>'.
+src/pages/patient/PatientHistorique.tsx(79,30): error TS7006: Parameter 'ticket' implicitly has an 'any' type.
+src/pages/patient/PatientHistorique.tsx(79,38): error TS6133: 'idx' is declared but its value is never read.
+src/pages/patient/PatientHistorique.tsx(79,38): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/pages/patient/PatientMessagerie.tsx(49,44): error TS2339: Property 'find' does not exist on type 'never[] | ApiResponse<Conversation[]>'.
+  Property 'find' does not exist on type 'ApiResponse<Conversation[]>'.
+src/pages/patient/PatientMessagerie.tsx(49,49): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/pages/patient/PatientMessagerie.tsx(74,33): error TS2339: Property 'map' does not exist on type 'never[] | ApiResponse<Conversation[]>'.
+  Property 'map' does not exist on type 'ApiResponse<Conversation[]>'.
+src/pages/patient/PatientMessagerie.tsx(74,38): error TS7006: Parameter 'conv' implicitly has an 'any' type.
+src/pages/patient/PatientMessagerie.tsx(135,30): error TS2339: Property 'map' does not exist on type 'never[] | ApiResponse<Message[]>'.
+  Property 'map' does not exist on type 'ApiResponse<Message[]>'.
+src/pages/patient/PatientMessagerie.tsx(135,35): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/pages/patient/PatientMessagerie.tsx(135,38): error TS6133: 'idx' is declared but its value is never read.
+src/pages/patient/PatientMessagerie.tsx(135,38): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/pages/patient/PatientReservation.tsx(4,3): error TS6133: 'ChevronRight' is declared but its value is never read.
+src/pages/patient/PatientReservation.tsx(7,3): error TS6133: 'User' is declared but its value is never read.
+src/pages/patient/PatientReservation.tsx(31,35): error TS6133: 'filesLoading' is declared but its value is never read.
+src/pages/patient/PatientReservation.tsx(104,35): error TS2339: Property 'map' does not exist on type 'ApiResponse<FileAttente[]>'.
+src/pages/patient/PatientReservation.tsx(104,40): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/pages/patient/PatientReservation.tsx(188,88): error TS2339: Property 'find' does not exist on type 'ApiResponse<FileAttente[]>'.
+src/pages/patient/PatientReservation.tsx(188,93): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/pages/patient/PatientTicket.tsx(6,3): error TS6133: 'MapPin' is declared but its value is never read.
+src/pages/patient/PatientTicket.tsx(8,3): error TS6133: 'Stethoscope' is declared but its value is never read.
+src/pages/patient/PatientTicket.tsx(22,31): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Argument of type '{ queryKey: (string | undefined)[]; queryFn: () => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>; }' is not assignable to parameter of type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>'.
+      Property 'initialData' is missing in type '{ queryKey: (string | undefined)[]; queryFn: () => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>; }' but required in type '{ initialData: unknown; queryFn?: QueryFunction<unknown, (string | undefined)[]> | undefined; }'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, Error, AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'unique symbol | QueryFunction<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[], never> | undefined'.
+      Type '() => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'QueryFunction<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[], never>'.
+        Type 'Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}> | Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+          Type 'Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}> | Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+            Type 'Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+              Type 'AxiosResponse<ApiResponse<Ticket>, any, {}>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}>'.
+                Type 'ApiResponse<Ticket>' is not assignable to type 'ApiResponse<Ticket[]>'.
+                  Type 'Ticket' is missing the following properties from type 'Ticket[]': length, pop, push, concat, and 35 more.
+  Overload 3 of 3, '(options: UseQueryOptions<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, Error, AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'unique symbol | QueryFunction<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[], never> | undefined'.
+      Type '() => Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'QueryFunction<AxiosResponse<ApiResponse<Ticket[]>, any, {}>, (string | undefined)[], never>'.
+        Type 'Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>> | Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}> | Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+          Type 'Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}> | Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+            Type 'Promise<AxiosResponse<ApiResponse<Ticket>, any, {}>>' is not assignable to type 'Promise<AxiosResponse<ApiResponse<Ticket[]>, any, {}>>'.
+              Type 'AxiosResponse<ApiResponse<Ticket>, any, {}>' is not assignable to type 'AxiosResponse<ApiResponse<Ticket[]>, any, {}>'.
+                Type 'ApiResponse<Ticket>' is not assignable to type 'ApiResponse<Ticket[]>'.
+                  Type 'Ticket' is missing the following properties from type 'Ticket[]': length, pop, push, concat, and 35 more.
+src/pages/patient/PatientTicket.tsx(27,29): error TS2339: Property 'data' does not exist on type '{}'.
+src/pages/patient/PatientTicket.tsx(27,42): error TS2339: Property 'data' does not exist on type '{}'.
+src/pages/patient/PatientTicket.tsx(27,53): error TS7006: Parameter 't' implicitly has an 'any' type.
