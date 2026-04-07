@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bell, Database, Layout, Cloud, Check, X, Loader2 } from 'lucide-react';
 import { Sidebar } from '../../components/common/Sidebar';
 import { MobileNav } from '../../components/common/MobileNav';
@@ -7,6 +7,20 @@ import { adminApi } from '../../api/adminApi';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import type { ParametreSysteme } from '../../types';
 import toast from 'react-hot-toast';
+
+interface SettingItem {
+  cle: string;
+  title: string;
+  type: 'text' | 'number' | 'toggle' | 'select';
+  suffix?: string;
+  options?: string[];
+}
+
+interface SettingSection {
+  group: string;
+  icon: any;
+  items: SettingItem[];
+}
 
 export const AdminConfiguration: React.FC = () => {
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -72,7 +86,7 @@ export const AdminConfiguration: React.FC = () => {
     updateMutation.mutate({ cle, valeur: newValue });
   };
 
-  const settingsSections = [
+  const settingsSections: SettingSection[] = [
     {
       group: 'Général',
       icon: Layout,

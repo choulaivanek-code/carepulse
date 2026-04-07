@@ -15,5 +15,7 @@ export const adminApi = {
   getFeedbacksNonModeres: () => api.get('admin/feedbacks/non-moderes'),
   modererFeedback: (id: number, approuve: boolean) => api.put(`admin/feedbacks/${id}/moderer`, { approuve }),
   getDashboardStats: () => api.get('stats/dashboard'),
+  getMLStatus: () => api.get('ml/status'),
+  triggerMLTraining: () => api.post('ml/train'),
   lancerBackup: () => api.post('admin/backup'),
 };

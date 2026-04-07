@@ -15,10 +15,11 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Logo } from './Logo';
-
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
 
   const navItemsByRole = {
     PATIENT: [
@@ -47,10 +48,6 @@ export const Sidebar: React.FC = () => {
 
   const navItems = user?.role ? navItemsByRole[user.role as keyof typeof navItemsByRole] : [];
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col z-30 shadow-sm">
@@ -96,13 +93,22 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
         <button 
-          onClick={handleLogout}
+          onClick={() => setIsLogoutModalOpen(true)}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-slate-200 text-slate-600 text-xs font-black uppercase tracking-widest hover:border-red-100 hover:bg-red-50 hover:text-red-500 transition-all duration-300"
         >
           <LogOut size={14} />
           Déconnexion
         </button>
       </div>
+
+      <LogoutConfirmModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => {
+          logout();
+          navigate('/login');
+        }}
+      />
     </aside>
   );
 };

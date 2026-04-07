@@ -148,17 +148,17 @@ export interface FeedbackRequest {
 
 export interface StatsDashboard {
   ticketsActifs: number;
-  ticketsAujourdhui: number;
-  tauxOccupation: number;
-  tempsAttenteMoyen: number;
-  medecinsDisponibles: number;
-  tauxNoShow: number;
-  tauxSatisfaction: number;
-  // Agent KPI fields
-  enAttente: number;
-  enCours: number;
-  absences: number;
+  ticketsJour: number;
+  occupation: number;
+  attenteMoyenne: number;
+  medecinsActifs: number;
+  noShowPourcentage: number;
   satisfaction: number;
+  totalTickets: number;
+  traficParHeure: Array<{ heure: string; count: number }>;
+  repartitionStatuts: Record<string, number>;
+  topMedecins: Array<{ nom: string; specialite: string; consultations: number }>;
+  comparaisonHier: Record<string, string>;
 }
 
 export interface ReglePriorisation {

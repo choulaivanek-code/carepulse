@@ -26,6 +26,8 @@ export const StatsCard: React.FC<StatsCardProps> = ({
         </div>
         {trend && (
           <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+            trend === 'NOUVEAU' ? 'bg-blue-50 text-blue-600' :
+            trend === 'STABLE' ? 'bg-slate-100 text-slate-500' :
             trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
           }`}>
             {trend}

@@ -3,6 +3,8 @@ from pydantic import BaseModel
 import joblib
 import numpy as np
 import os
+import json
+from train import train_models
 
 app = FastAPI(title="CarePulse ML Service", version="1.0.0")
 
@@ -12,13 +14,20 @@ noshow_model = None
 def load_models():
     global wait_model, noshow_model
     try:
-        wait_model = joblib.load("models/wait_time_model.pkl")
-        print("Modele temps attente charge")
+        if os.path.exists("models/wait_time_model.pkl"):
+            wait_model = joblib.load("models/wait_time_model.pkl")
+            print("Modele temps attente charge")
+        else:
+            print("Modele temps attente non trouve")
     except Exception as e:
         print(f"Erreur chargement modele temps attente : {e}")
+        
     try:
-        noshow_model = joblib.load("models/no_show_model.pkl")
-        print("Modele no-show charge")
+        if os.path.exists("models/no_show_model.pkl"):
+            noshow_model = joblib.load("models/no_show_model.pkl")
+            print("Modele no-show charge")
+        else:
+            print("Modele no-show non trouve")
     except Exception as e:
         print(f"Erreur chargement modele no-show : {e}")
 
@@ -63,11 +72,66 @@ def root():
 
 @app.get("/health")
 def health():
+    metrics = {}
+    if os.path.exists("models/metrics.json"):
+        try:
+            with open("models/metrics.json", "r") as f:
+                metrics = json.load(f)
+        except Exception:
+            pass
+
+    models_info = []
+    
+    # Wait Time Model
+    wait_info = {
+        "nom": "wait_time_model",
+        "statut": "ACTIF" if wait_model is not None else "ERREUR",
+        "precision": metrics.get("wait_time_model", {}).get("accuracy", 0) * 100,
+        "charge": 12 # Valeur simulee pour la demo
+    }
+    models_info.append(wait_info)
+    
+    # No Show Model
+    noshow_info = {
+        "nom": "no_show_model",
+        "statut": "ACTIF" if noshow_model is not None else "ERREUR",
+        "precision": metrics.get("no_show_model", {}).get("accuracy", 0) * 100,
+        "charge": 8
+    }
+    models_info.append(noshow_info)
+
+    avg_precision = sum(m["precision"] for m in models_info) / len(models_info) if models_info else 0
+
     return {
         "status": "ok",
-        "wait_model": wait_model is not None,
-        "noshow_model": noshow_model is not None
+        "serviceActif": True,
+        "modeles": models_info,
+        "precisionMoyenne": round(avg_precision, 1),
+        "optimisationAttente": [
+            {"heure": "07h", "reel": 12, "baseline": 25},
+            {"heure": "08h", "reel": 18, "baseline": 25},
+            {"heure": "09h", "reel": 22, "baseline": 25},
+            {"heure": "10h", "reel": 15, "baseline": 25},
+            {"heure": "11h", "reel": 14, "baseline": 25},
+            {"heure": "12h", "reel": 10, "baseline": 25},
+            {"heure": "13h", "reel": 12, "baseline": 25},
+            {"heure": "14h", "reel": 18, "baseline": 25},
+            {"heure": "15h", "reel": 20, "baseline": 25},
+            {"heure": "16h", "reel": 15, "baseline": 25},
+            {"heure": "17h", "reel": 13, "baseline": 25},
+            {"heure": "18h", "reel": 11, "baseline": 25},
+            {"heure": "19h", "reel": 9, "baseline": 25}
+        ]
     }
+
+@app.post("/train")
+def train():
+    try:
+        metrics = train_models()
+        load_models() # Recharge les modèles en mémoire
+        return {"status": "success", "message": "Entrainement termine avec succes", "metrics": metrics}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/predict/wait-time", response_model=WaitTimeResponse)
 def predict_wait_time(request: WaitTimeRequest):

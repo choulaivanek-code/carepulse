@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Ticket, 
@@ -9,12 +9,16 @@ import {
   Stethoscope,
   Users,
   Settings,
-  Cpu
+  Cpu,
+  LogOut
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 
 export const MobileNav: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const navItemsByRole = {
     PATIENT: [
@@ -58,6 +62,21 @@ export const MobileNav: React.FC = () => {
           <item.icon className="w-6 h-6" />
         </NavLink>
       ))}
+      <button
+        onClick={() => setIsLogoutModalOpen(true)}
+        className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all text-slate-400 hover:text-red-500 hover:bg-red-50"
+      >
+        <LogOut className="w-6 h-6" />
+      </button>
+
+      <LogoutConfirmModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => {
+          logout();
+          navigate('/login');
+        }}
+      />
     </nav>
   );
 };

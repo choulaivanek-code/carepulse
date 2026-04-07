@@ -5,24 +5,44 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+import java.util.Map;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class StatsDashboardResponse {
-    // Legacy fields kept for backwards compat
     private int ticketsActifs;
-    private int ticketsAujourdhui;
-    private double tauxOccupation;
-    private double tempsAttenteMoyen;
-    private int medecinsDisponibles;
-    private double tauxNoShow;
-    private double tauxSatisfaction;
-
-    // Agent KPI fields — exact DB values
-    private long enAttente;
-    private long enCours;
-    private long absences;
+    private int ticketsJour;
+    private double occupation;
+    private double attenteMoyenne;
+    private int medecinsActifs;
+    private double noShowPourcentage;
     private double satisfaction;
-}
+    private long totalTickets;
 
+    private List<TraficHeure> traficParHeure;
+    private Map<String, Long> repartitionStatuts;
+    private List<TopMedecinStat> topMedecins;
+    private Map<String, String> comparaisonHier;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TraficHeure {
+        private String heure;
+        private long count;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TopMedecinStat {
+        private String nom;
+        private String specialite;
+        private long consultations;
+    }
+}
