@@ -1,0 +1,5 @@
+id	nom
+1	M‚decine G‚n‚rale
+2	Urgences
+3	P‚diatrie
+4	Cardiologie

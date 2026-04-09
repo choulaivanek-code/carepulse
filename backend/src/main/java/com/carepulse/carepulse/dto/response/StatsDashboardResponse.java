@@ -14,8 +14,12 @@ import java.util.Map;
 @AllArgsConstructor
 public class StatsDashboardResponse {
     private int ticketsActifs;
+    private int enAttente;
+    private int enCours;
+    private int absences;
     private int ticketsJour;
     private double occupation;
+    private double tauxOccupation;
     private double attenteMoyenne;
     private int medecinsActifs;
     private double noShowPourcentage;

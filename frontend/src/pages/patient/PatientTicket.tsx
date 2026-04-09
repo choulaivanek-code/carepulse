@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -22,6 +23,7 @@ import jsPDF from 'jspdf';
 const STATUTS_ACTIFS = ['WAITING', 'PRESENT', 'READY', 'IN_PROGRESS'];
 
 export const PatientTicket: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore(state => state.user);
   
@@ -35,7 +37,8 @@ export const PatientTicket: React.FC = () => {
         const res = await ticketApi.getMesTickets();
         return res.data.data.find(t => STATUTS_ACTIFS.includes(t.statut));
       }
-    }
+    },
+    refetchInterval: 30000,
   });
 
   const handleCopierLien = () => {
@@ -89,7 +92,7 @@ export const PatientTicket: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <header className="flex items-center gap-6 mb-12 animate-fade-in">
           <Link to="/patient" className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-cyan-600 transition-all shadow-sm">
             <ArrowLeft size={20} />

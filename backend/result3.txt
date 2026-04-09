@@ -1,0 +1,2 @@
+id	numero_ticket	statut
+4	S002	READY

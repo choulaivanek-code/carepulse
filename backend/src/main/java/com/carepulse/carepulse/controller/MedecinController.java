@@ -63,6 +63,7 @@ public class MedecinController {
                 .heureDebut(m.getHeureDebut())
                 .heureFin(m.getHeureFin())
                 .disponible(m.isDisponible())
+                .fileAttenteId(m.getFileAttente() != null ? m.getFileAttente().getId() : null)
                 .fileAttenteNom(m.getFileAttente() != null ? m.getFileAttente().getNom() : null)
                 .build();
     }

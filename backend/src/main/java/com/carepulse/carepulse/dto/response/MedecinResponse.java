@@ -20,5 +20,6 @@ public class MedecinResponse {
     private LocalTime heureDebut;
     private LocalTime heureFin;
     private boolean disponible;
+    private Long fileAttenteId;
     private String fileAttenteNom;
 }

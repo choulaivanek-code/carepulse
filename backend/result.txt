@@ -1,0 +1,4 @@
+id	numero_ticket	statut	medecin_id	file_attente_id
+4	S002	READY	2	4
+id	file_attente_id	disponible	nom
+2	4		atangana

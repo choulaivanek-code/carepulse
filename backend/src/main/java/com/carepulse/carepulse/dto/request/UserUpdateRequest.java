@@ -18,8 +18,20 @@ public class UserUpdateRequest {
     private String telephone;
 
     private String specialite;
+    
+    private String numeroOrdre;
+    
+    private String joursTravail;
+    
+    private String heureDebut;
+    
+    private String heureFin;
+    
+    private Long fileAttenteId;
 
     private String poste;
 
     private boolean active;
+    
+    private boolean disponible;
 }

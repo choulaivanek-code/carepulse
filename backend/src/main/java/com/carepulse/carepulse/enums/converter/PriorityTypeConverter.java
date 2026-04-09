@@ -20,10 +20,18 @@ public class PriorityTypeConverter implements AttributeConverter<PriorityType, S
         if (dbData == null || dbData.trim().isEmpty()) {
             return null;
         }
+        
+        switch (dbData) {
+            case "NORMALE": return PriorityType.NORMAL;
+            case "MODEREE": return PriorityType.MODERATE;
+            case "URGENTE": return PriorityType.HIGH;
+            case "CRITIQUE": return PriorityType.URGENT;
+        }
+
         try {
             return PriorityType.valueOf(dbData);
         } catch (IllegalArgumentException e) {
-            return null;
+            return PriorityType.NORMAL;
         }
     }
 }

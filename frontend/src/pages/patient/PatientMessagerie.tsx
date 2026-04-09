@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   Send, 
@@ -19,6 +20,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 
 export const PatientMessagerie: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const [activeTab, setActiveTab] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
@@ -60,7 +62,7 @@ export const PatientMessagerie: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 flex flex-col h-screen">
+      <main className={`flex-1 ${sidebarMargin} flex flex-col h-screen transition-all duration-300`}>
         
         <div className="flex-1 flex overflow-hidden">
           {/* List - Desktop only sidebar */}

@@ -57,6 +57,23 @@ public class PriorisationService {
             }
         }
 
+        if (ticket.getPriorite() != null) {
+            switch (ticket.getPriorite()) {
+                case URGENT:
+                    scoreTotal += 10000;
+                    break;
+                case HIGH:
+                    scoreTotal += 5000;
+                    break;
+                case MODERATE:
+                    scoreTotal += 1000;
+                    break;
+                case NORMAL:
+                default:
+                    break;
+            }
+        }
+
         log.info("Score final pour le ticket {}: {}", ticket.getNumeroTicket(), scoreTotal);
         return scoreTotal;
     }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ChevronLeft, 
@@ -35,13 +36,40 @@ const SERVICE_ICONS: Record<string, string> = {
   SUIVI: '🔄',
 };
 
+const MOTIFS_PAR_SERVICE: Record<string, string[]> = {
+  'Médecine Générale': [
+    'Fièvre / Grippe', 'Douleurs abdominales', 'Maux de tête',
+    'Toux / Rhume', 'Fatigue inexpliquée', 'Renouvellement ordonnance',
+    'Bilan de santé', 'Autre'
+  ],
+  'Pédiatrie': [
+    'Fièvre chez l\'enfant', 'Pleurs inexpliqués', 'Problèmes d\'alimentation',
+    'Éruption cutanée', 'Toux / Difficultés respiratoires',
+    'Contrôle de croissance', 'Vaccination', 'Autre'
+  ],
+  'Cardiologie': [
+    'Douleurs thoraciques', 'Palpitations cardiaques', 'Essoufflement',
+    'Hypertension', 'Contrôle post-opératoire', 'Bilan cardiaque', 'Autre'
+  ],
+  'Urgences': [
+    'Douleur intense soudaine', 'Difficulté à respirer', 'Perte de connaissance',
+    'Saignement abondant', 'Traumatisme / Chute', 'Réaction allergique', 'Autre'
+  ]
+};
+
+const DEFAULT_MOTIFS = [
+  'Consultation générale', 'Suivi médical', 'Renouvellement ordonnance', 'Douleur', 'Autre'
+];
+
 export const PatientReservation: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [formData, setFormData] = useState({
     fileId: null as number | null,
     motif: '',
+    motifPersonnalise: '',
     priorite: 'NORMALE',
     notes: '',
   });
@@ -66,6 +94,16 @@ export const PatientReservation: React.FC = () => {
 
   const selectedFile = files.find(f => f.id === formData.fileId);
 
+  // Auto-select Urgences on CRITIQUE
+  React.useEffect(() => {
+    if (formData.priorite === 'CRITIQUE') {
+      const urgencesFile = files.find(f => f.nom.toLowerCase().includes('urgence'));
+      if (urgencesFile && formData.fileId !== urgencesFile.id) {
+        setFormData(prev => ({ ...prev, fileId: urgencesFile.id, motif: '' }));
+      }
+    }
+  }, [formData.priorite, files, formData.fileId]);
+
   const mutation = useMutation({
     mutationFn: (data: any) => ticketApi.creerTicket(data),
     onSuccess: () => {
@@ -86,16 +124,22 @@ export const PatientReservation: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    if (!formData.fileId || !formData.motif) {
-      toast.error('Veuillez remplir tous les champs');
+    if (!formData.fileId || !formData.motif || (formData.motif === 'Autre' && !formData.motifPersonnalise)) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
+    
+    let prioriteBackend = 'NORMAL';
+    if (formData.priorite === 'MODÉRÉE') prioriteBackend = 'MODERATE';
+    if (formData.priorite === 'ÉLEVÉE') prioriteBackend = 'HIGH';
+    if (formData.priorite === 'CRITIQUE') prioriteBackend = 'URGENT';
+
     mutation.mutate({
       fileAttenteId: formData.fileId,
-      motif: formData.motif,
-      estUrgence: false,
-      consultationType: 'GENERALE',
-    });
+      motif: formData.motif === 'Autre' ? formData.motifPersonnalise : formData.motif,
+      priorite: prioriteBackend,
+      estUrgence: formData.priorite === 'CRITIQUE',
+      consultationType: 'GENERALE',    });
   };
   const formatSchedule = (days: string) => {
     if (!days) return '';
@@ -135,7 +179,7 @@ export const PatientReservation: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <div className="max-w-4xl mx-auto animate-fade-in">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic mb-12">
             Réserver un ticket
@@ -313,37 +357,91 @@ export const PatientReservation: React.FC = () => {
               )}
 
               {step === 2 && (
-                <div className="animate-fade-in space-y-8 max-w-lg mx-auto">
+                <div className="animate-fade-in space-y-8 max-w-2xl mx-auto">
                    <h2 className="text-xl font-black mb-4 tracking-tight">Précisez votre motif</h2>
-                   <div className="space-y-6">
-                      <div className="space-y-2">
+                   <div className="space-y-8">
+                      <div className="space-y-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Objet de la visite</label>
-                        <textarea
-                          placeholder="Ex: Douleurs abdominales depuis 2 jours..."
-                          className="input-standard min-h-[120px] py-4 resize-none"
-                          value={formData.motif}
-                          onChange={(e) => setFormData({ ...formData, motif: e.target.value })}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {(selectedFile && MOTIFS_PAR_SERVICE[selectedFile.nom] ? MOTIFS_PAR_SERVICE[selectedFile.nom] : DEFAULT_MOTIFS).map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, motif: m })}
+                              className={`p-4 text-sm font-bold rounded-2xl border-2 transition-all text-left ${
+                                formData.motif === m 
+                                  ? 'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm' 
+                                  : 'border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                        {formData.motif === 'Autre' && (
+                          <div className="pt-2 animate-fade-in">
+                            <textarea
+                              placeholder="Veuillez préciser votre motif..."
+                              className="input-standard min-h-[100px] py-4 resize-none w-full"
+                              value={formData.motifPersonnalise}
+                              onChange={(e) => setFormData({ ...formData, motifPersonnalise: e.target.value })}
+                              autoFocus
+                            />
+                          </div>
+                        )}
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Niveau d'importance</label>
-                        <div className="grid grid-cols-2 gap-4">
-                           {['NORMALE', 'MODEREE'].map(p => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           {[
+                             { id: 'NORMALE', label: 'NORMALE', desc: 'Consultation de routine', bg: 'bg-white', border: 'border-slate-200', text: 'text-slate-600', activeBg: 'bg-slate-100', activeBorder: 'border-slate-400', activeText: 'text-slate-800' },
+                             { id: 'MODÉRÉE', label: 'MODÉRÉE', desc: 'Symptômes gênants', bg: 'bg-yellow-50/50', border: 'border-yellow-200', text: 'text-yellow-700', activeBg: 'bg-yellow-100', activeBorder: 'border-yellow-400', activeText: 'text-yellow-800' },
+                             { id: 'ÉLEVÉE', label: 'ÉLEVÉE', desc: 'Nécessite attention rapide', bg: 'bg-orange-50/50', border: 'border-orange-200', text: 'text-orange-700', activeBg: 'bg-orange-100', activeBorder: 'border-orange-400', activeText: 'text-orange-800' },
+                           ].map(p => (
                              <button
-                               key={p}
+                               key={p.id}
                                type="button"
-                               onClick={() => setFormData({ ...formData, priorite: p })}
-                               className={`py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border-2 transition-all ${
-                                 formData.priorite === p 
-                                   ? 'border-cyan-600 bg-cyan-600 text-white' 
-                                   : 'border-slate-100 text-slate-400'
+                               onClick={() => setFormData({ ...formData, priorite: p.id })}
+                               className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-start ${
+                                 formData.priorite === p.id 
+                                   ? `${p.activeBg} ${p.activeBorder} ${p.activeText} shadow-sm scale-[1.02]` 
+                                   : `${p.bg} ${p.border} ${p.text} hover:scale-[1.01]`
                                }`}
                              >
-                               {p}
+                               <span className="font-black text-sm uppercase tracking-widest mb-1">{p.label}</span>
+                               <span className="text-xs opacity-80 text-left">{p.desc}</span>
                              </button>
                            ))}
+                           
+                           <button
+                             type="button"
+                             onClick={() => setFormData({ ...formData, priorite: 'CRITIQUE' })}
+                             className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-start md:col-span-1 ${
+                               formData.priorite === 'CRITIQUE'
+                                 ? `bg-red-600 border-red-700 text-white shadow-md scale-[1.04]` 
+                                 : `bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 hover:scale-[1.02]`
+                             }`}
+                           >
+                             <span className="font-black text-sm uppercase tracking-widest mb-1 flex items-center gap-2">
+                               {formData.priorite === 'CRITIQUE' ? '⚠️' : ''} CRITIQUE
+                             </span>
+                             <span className="text-xs opacity-90 text-left font-medium">🚨 Prise en charge immédiate</span>
+                           </button>
                         </div>
+                        
+                        {formData.priorite === 'CRITIQUE' && (
+                          <div className="mt-4 p-5 bg-red-50 border border-red-200 rounded-2xl animate-fade-in flex items-start gap-4">
+                            <span className="text-2xl">⚠️</span>
+                            <div>
+                              <p className="font-bold text-red-800 text-sm">Urgence vitale possible</p>
+                              <p className="text-xs text-red-600 font-medium mt-1">
+                                Si vous êtes en danger immédiat, appelez le 911 ou rendez-vous directement aux urgences les plus proches. 
+                                (Le service Urgences a été automatiquement sélectionné)
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                    </div>
                 </div>
@@ -371,7 +469,10 @@ export const PatientReservation: React.FC = () => {
                       <div className="flex justify-between items-center pt-4 border-t border-slate-200">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Priorité</p>
                         <p className={`text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full ${
-                          formData.priorite === 'MODEREE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                          formData.priorite === 'CRITIQUE' ? 'bg-red-100 text-red-700' : 
+                          formData.priorite === 'ÉLEVÉE' ? 'bg-orange-100 text-orange-700' :
+                          formData.priorite === 'MODÉRÉE' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-slate-100 text-slate-700'
                         }`}>
                           {formData.priorite}
                         </p>

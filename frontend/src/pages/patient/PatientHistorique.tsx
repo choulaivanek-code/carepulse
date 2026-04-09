@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery } from '@tanstack/react-query';
 import {
   History, 
@@ -15,6 +16,7 @@ import { MobileNav } from '../../components/common/MobileNav';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 export const PatientHistorique: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const { user } = useAuthStore();
   const { data: consultationsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['patient-consultations', user?.id],
@@ -38,7 +40,7 @@ export const PatientHistorique: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <header className="mb-12 animate-fade-in">
           <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight italic">
             Mon Historique

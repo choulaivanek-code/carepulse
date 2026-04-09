@@ -1,5 +1,7 @@
 package com.carepulse.carepulse.service;
 
+import java.time.format.DateTimeFormatter;
+
 import com.carepulse.carepulse.dto.request.CreateTicketRequest;
 import com.carepulse.carepulse.entity.*;
 import com.carepulse.carepulse.enums.TicketStatus;
@@ -12,6 +14,8 @@ import com.carepulse.carepulse.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import jakarta.annotation.PostConstruct;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,24 +41,39 @@ public class TicketService {
     private final WebSocketService webSocketService;
     private final MLServiceClient mlServiceClient;
 
+    @PostConstruct
+    public void reassignerTicketsOrphelins() {
+        log.info("Lancement de la réassignation des tickets orphelins...");
+        List<TicketStatus> statutsActifs = List.of(
+            TicketStatus.WAITING, 
+            TicketStatus.PRESENT, 
+            TicketStatus.READY, 
+            TicketStatus.IN_PROGRESS
+        );
+
+        List<Ticket> ticketsSansMedecin = ticketRepository.findByMedecinIsNullAndStatutIn(statutsActifs);
+        
+        for (Ticket ticket : ticketsSansMedecin) {
+            medecinRepository.findFirstByFileAttenteAndDisponibleTrue(ticket.getFileAttente())
+                .ifPresent(medecin -> {
+                    log.info("Réassignation du ticket {} au médecin {}", ticket.getNumeroTicket(), medecin.getUser().getNom());
+                    ticket.setMedecin(medecin);
+                    ticketRepository.save(ticket);
+                });
+        }
+    }
+
+    @Scheduled(fixedRate = 300000) // Toutes les 5 minutes
+    public void reassignerTicketsOrphelinsPeriodique() {
+        reassignerTicketsOrphelins();
+    }
+
     @Transactional
     public Ticket creerTicket(CreateTicketRequest request, Long userId) {
         log.info("Création d'un ticket pour l'utilisateur {}", userId);
         
         Patient patient = patientRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    log.warn("Patient non trouvé pour l'utilisateur {}, création automatique", userId);
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
-                    
-                    Patient newPatient = Patient.builder()
-                            .user(user)
-                            .scoreFiabilite(1.0)
-                            .nombreVisites(0)
-                            .nombreNoShows(0)
-                            .build();
-                    return patientRepository.save(newPatient);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Patient introuvable"));
 
         // Vérifie que le patient n'a pas déjà un ticket actif (ni WAITING, PRESENT, READY, ou IN_PROGRESS)
         boolean hasActiveTicket = ticketRepository.existsByPatientAndStatutIn(
@@ -76,9 +95,9 @@ public class TicketService {
                 .fileAttente(file)
                 .numeroTicket(numeroTicket)
                 .statut(TicketStatus.WAITING)
-                .priorite(request.isEstUrgence() ? PriorityType.URGENTE : PriorityType.NORMALE)
+                .priorite(request.getPriorite() != null ? request.getPriorite() : PriorityType.NORMAL)
                 .motif(request.getMotif())
-                .estUrgence(request.isEstUrgence())
+                .estUrgence(PriorityType.URGENT.equals(request.getPriorite()) || request.isEstUrgence())
                 .justificationUrgence(request.getJustificationUrgence())
                 .heureCreation(LocalDateTime.now())
                 .estPresent(true)
@@ -112,7 +131,9 @@ public class TicketService {
             // Extrait le numéro et incrémente
             String dernierNumero = dernierTicket.get().getNumeroTicket();
             try {
-                numero = Integer.parseInt(dernierNumero.replaceAll("[^0-9]", "")) + 1;
+                // Extrait la partie séquence avant le tiret (ex: G001-260408 -> G001)
+                String sequencePart = dernierNumero.contains("-") ? dernierNumero.split("-")[0] : dernierNumero;
+                numero = Integer.parseInt(sequencePart.replaceAll("[^0-9]", "")) + 1;
             } catch (NumberFormatException e) {
                 numero = ticketRepository.countByFileAttenteAndHeureCreationBetween(
                     fileAttente,
@@ -122,10 +143,11 @@ public class TicketService {
             }
         }
         
-        // Format : préfixe de la file + numéro sur 3 chiffres (ex: S001, S002, G001)
+        // Format : préfixe de la file + numéro sur 3 chiffres + suffixe date (ex: S001-260408)
         String prefixe = fileAttente.getNom() != null && !fileAttente.getNom().isEmpty() ? 
             fileAttente.getNom().substring(0, 1).toUpperCase() : "T";
-        return String.format("%s%03d", prefixe, numero);
+        String dateSuffix = aujourdhui.format(DateTimeFormatter.ofPattern("yyMMdd"));
+        return String.format("%s%03d-%s", prefixe, numero, dateSuffix);
     }
 
     public List<Ticket> getMesTickets(Long userId) {
@@ -226,5 +248,14 @@ public class TicketService {
     public Ticket getTicketById(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
+    }
+
+    public int getTicketPosition(Ticket t) {
+        long position = ticketRepository.countTicketsAvant(
+            t.getFileAttente(), 
+            List.of(TicketStatus.WAITING, TicketStatus.PRESENT, TicketStatus.READY), 
+            t.getHeureCreation()
+        );
+        return (int) (position + 1);
     }
 }

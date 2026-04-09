@@ -29,6 +29,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findByFileAttenteAndStatutIn(FileAttente fileAttente, List<TicketStatus> statuts);
     long countByStatutIn(List<TicketStatus> statuts);
     boolean existsByPatientAndStatutIn(Patient patient, List<TicketStatus> statuts);
+    List<Ticket> findByMedecinIsNullAndStatutIn(List<TicketStatus> statuts);
 
     long countByStatutAndHeureCreationBetween(TicketStatus statut, LocalDateTime debut, LocalDateTime fin);
 
@@ -50,4 +51,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Long countByFileAttenteAndHeureCreationBetween(
         FileAttente fileAttente, LocalDateTime debut, LocalDateTime fin
     );
+
+    @Query("SELECT COUNT(t) FROM Ticket t WHERE t.fileAttente = :file AND t.statut IN :statuts AND t.heureCreation < :heureCreation")
+    long countTicketsAvant(@Param("file") FileAttente file, @Param("statuts") List<TicketStatus> statuts, @Param("heureCreation") LocalDateTime heureCreation);
 }

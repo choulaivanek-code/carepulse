@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   Clock, 
@@ -22,22 +23,56 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 export const MedecinConsole: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const [activeTicket, setActiveTicket] = useState<any>(null);
   const [consultationData, setConsultationData] = useState({});
+  const [tempsEcoule, setTempsEcoule] = useState(0);
+
+  const formaterTemps = (secondes: number) => {
+    const min = Math.floor(secondes / 60).toString().padStart(2, '0');
+    const sec = (secondes % 60).toString().padStart(2, '0');
+    return `${min}:${sec}`;
+  };
 
   const { data: medecinData, isLoading: medecinLoading, refetch: refetchMedecin } = useQuery({
     queryKey: ['medecin-moi'],
     queryFn: () => medecinApi.getMoi(),
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const medecinInfo = medecinData?.data?.data;
   const enPause = medecinInfo ? !medecinInfo.disponible : false;
 
   const { data: ticketsData, refetch: refetchTickets, isLoading: ticketsLoading } = useQuery({
-    queryKey: ['medecin-tickets-console'],
+    queryKey: ['medecin-tickets-console', medecinInfo?.fileAttenteId],
     queryFn: () => ticketApi.getConsoleTickets(),
-    refetchInterval: 10000,
+    enabled: !!medecinInfo?.fileAttenteId,
+    refetchInterval: 15000,
   });
+
+  // Détection du changement de file d'attente
+  React.useEffect(() => {
+    const lastFileId = localStorage.getItem('last_file_id');
+    if (medecinInfo?.fileAttenteId && lastFileId && String(medecinInfo.fileAttenteId) !== lastFileId) {
+      toast.success(`Votre file d'attente a été mise à jour : ${medecinInfo.fileAttenteNom}`, {
+        duration: 5000,
+        position: 'top-right',
+        style: {
+          background: '#0891B2',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '16px',
+          borderRadius: '16px',
+        },
+        icon: '🔔'
+      });
+      refetchTickets();
+    }
+    if (medecinInfo?.fileAttenteId) {
+      localStorage.setItem('last_file_id', String(medecinInfo.fileAttenteId));
+    }
+  }, [medecinInfo?.fileAttenteId, medecinInfo?.fileAttenteNom, refetchTickets]);
 
   const pauseMutation = useMutation({
     mutationFn: () => medecinApi.togglePause(),
@@ -74,6 +109,22 @@ export const MedecinConsole: React.FC = () => {
     },
   });
 
+  const [showNoShowModal, setShowNoShowModal] = useState(false);
+  const noShowMutation = useMutation({
+    mutationFn: (id: number) => ticketApi.signalerAbsence(id),
+    onSuccess: () => {
+      toast.success('Patient marqué comme absent.');
+      setShowNoShowModal(false);
+      setActiveTicket(null);
+      setConsultationData({});
+      refetchTickets();
+    },
+    onError: () => {
+      setShowNoShowModal(false);
+      toast.error('Erreur lors du signalement.');
+    }
+  });
+
   const tickets = ticketsData?.data?.data ?? [];
   const prochainTicket = tickets.find(t => t.statut === 'READY');
   const fileAttente = tickets.filter(t => t.statut === 'WAITING').slice(0, 5);
@@ -86,12 +137,27 @@ export const MedecinConsole: React.FC = () => {
     }
   }, [currentConsultation, activeTicket]);
 
+  React.useEffect(() => {
+    if (!activeTicket?.heureDebut) {
+        setTempsEcoule(0);
+        return;
+    }
+    
+    const interval = setInterval(() => {
+      const debut = new Date(activeTicket.heureDebut).getTime();
+      const maintenant = Date.now();
+      setTempsEcoule(Math.floor((maintenant - debut) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [activeTicket?.heureDebut]);
+
   if (medecinLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><LoadingSpinner /></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         
         {enPause && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3 text-amber-700 animate-slide-in">
@@ -205,7 +271,7 @@ export const MedecinConsole: React.FC = () => {
                          </h2>
                       </div>
                       <div className="text-right">
-                         <p className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums mb-1">08:24</p>
+                         <p className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums mb-1">{formaterTemps(tempsEcoule)}</p>
                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temps réel</p>
                       </div>
                    </div>
@@ -243,9 +309,12 @@ export const MedecinConsole: React.FC = () => {
                          <CheckCircle size={16} />
                          Clôturer Consultation
                       </button>
-                      <button className="w-full py-4 rounded-xl bg-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-3 border border-white/10">
+                      <button 
+                        onClick={() => setShowNoShowModal(true)}
+                        className="w-full py-4 rounded-xl bg-amber-500/10 text-amber-500 font-black text-[10px] uppercase tracking-widest hover:bg-amber-500/20 transition-all flex items-center justify-center gap-3 border border-amber-500/20"
+                      >
                          <AlertCircle size={16} />
-                         Signaler Retard
+                         Marquer No-Show
                       </button>
                    </div>
                 </div>
@@ -262,6 +331,40 @@ export const MedecinConsole: React.FC = () => {
         )}
       </main>
       <MobileNav />
+
+      {/* Modal Confirmation No-Show */}
+      {showNoShowModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative overflow-hidden animate-slide-up">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-6">
+              <AlertCircle size={32} />
+            </div>
+            
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight italic mb-2">Marquer No-Show</h3>
+            <p className="text-slate-500 text-sm font-medium mb-8">
+               Êtes-vous sûr de marquer ce patient comme absent ? Cette action annulera sa consultation.
+            </p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowNoShowModal(false)}
+                className="flex-1 py-3.5 rounded-xl bg-slate-100 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={() => {
+                  if (activeTicket) noShowMutation.mutate(activeTicket.id);
+                }}
+                disabled={noShowMutation.isPending}
+                className="flex-1 py-3.5 rounded-xl bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-70"
+              >
+                {noShowMutation.isPending ? 'En cours...' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

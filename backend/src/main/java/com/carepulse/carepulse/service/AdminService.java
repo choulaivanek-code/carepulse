@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -146,6 +147,21 @@ public class AdminService {
             Medecin medecin = medecinRepository.findByUser(user)
                     .orElseThrow(() -> new ResourceNotFoundException("Médecin non trouvé"));
             medecin.setSpecialite(request.getSpecialite());
+            medecin.setNumeroOrdre(request.getNumeroOrdre());
+            medecin.setJoursTravail(request.getJoursTravail());
+            if (request.getHeureDebut() != null && !request.getHeureDebut().isBlank()) {
+                medecin.setHeureDebut(LocalTime.parse(request.getHeureDebut()));
+            }
+            if (request.getHeureFin() != null && !request.getHeureFin().isBlank()) {
+                medecin.setHeureFin(LocalTime.parse(request.getHeureFin()));
+            }
+            medecin.setDisponible(request.isDisponible());
+
+            if (request.getFileAttenteId() != null) {
+                medecin.setFileAttente(fileAttenteRepository.findById(request.getFileAttenteId())
+                        .orElseThrow(() -> new ResourceNotFoundException("File d'attente non trouvée")));
+            }
+            
             medecinRepository.save(medecin);
         } else if (user.getRole() == RoleType.AGENT) {
             Agent agent = agentRepository.findByUser(user)

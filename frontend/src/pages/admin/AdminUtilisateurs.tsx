@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   UserPlus, 
@@ -21,6 +22,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import type { User } from '../../types';
 
 export const AdminUtilisateurs: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -30,6 +32,7 @@ export const AdminUtilisateurs: React.FC = () => {
   const { data: usersData, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => adminApi.getUsers(),
+    refetchInterval: 60000,
   });
 
   const toggleMutation = useMutation({
@@ -126,7 +129,7 @@ export const AdminUtilisateurs: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12 animate-fade-in">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Utilisateurs</h1>

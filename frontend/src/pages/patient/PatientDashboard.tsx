@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, PlusCircle, Ticket as TicketIcon } from 'lucide-react';
 import { ticketApi } from '../../api/ticketApi';
@@ -16,6 +17,7 @@ import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 
 export const PatientDashboard: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -23,7 +25,7 @@ export const PatientDashboard: React.FC = () => {
   const { data: ticketsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['mes-tickets'],
     queryFn: () => ticketApi.getMesTickets(),
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const tickets = ticketsData?.data?.data ?? [];
@@ -77,7 +79,7 @@ export const PatientDashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
 
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         {/* Header */}
         <header className="flex items-center justify-between mb-12">
           <div className="animate-fade-in">
@@ -134,7 +136,7 @@ export const PatientDashboard: React.FC = () => {
                 current={activeTicket.positionActuelle}
                 total={activeTicket.positionActuelle + 5} // Mock total
               />
-              <WaitTimeDisplay minutes={activeTicket.tempsAttenteEstime} />
+              <WaitTimeDisplay ticket={activeTicket} />
             </div>
           </div>
         ) : (

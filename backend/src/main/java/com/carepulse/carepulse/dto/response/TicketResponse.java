@@ -25,6 +25,7 @@ public class TicketResponse {
     private int positionActuelle;
     private int tempsAttenteEstime;
     private LocalDateTime heureCreation;
+    private LocalDateTime heureDebut;
     private Long patientId;
     private String patientNom;
     private String patientPrenom;

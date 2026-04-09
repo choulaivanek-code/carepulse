@@ -43,6 +43,12 @@ public class ConsultationService {
         ticket.setHeureDebut(LocalDateTime.now());
         ticketRepository.save(ticket);
 
+        // Avant de créer une consultation, vérifier s'il n'en existe pas déjà une active
+        java.util.Optional<Consultation> existante = consultationRepository.findFirstByTicketOrderByIdDesc(ticket);
+        if (existante.isPresent() && existante.get().getDateFin() == null) {
+            return existante.get();
+        }
+
         Consultation consultation = Consultation.builder()
                 .ticket(ticket)
                 .medecin(medecin)
@@ -59,7 +65,7 @@ public class ConsultationService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
         
-        Consultation consultation = consultationRepository.findByTicket(ticket)
+        Consultation consultation = consultationRepository.findFirstByTicketOrderByIdDesc(ticket)
                 .orElseThrow(() -> new ResourceNotFoundException("Consultation non trouvée"));
 
         consultation.setSymptomes(request.getSymptomes());
@@ -77,7 +83,7 @@ public class ConsultationService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
         
-        Consultation consultation = consultationRepository.findByTicket(ticket)
+        Consultation consultation = consultationRepository.findFirstByTicketOrderByIdDesc(ticket)
                 .orElseThrow(() -> new ResourceNotFoundException("Consultation non trouvée"));
 
         ticket.setStatut(TicketStatus.COMPLETED);

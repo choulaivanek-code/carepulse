@@ -1,9 +1,11 @@
 import React from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { FileDown, FileText, Download } from 'lucide-react';
 import { Sidebar } from '../../components/common/Sidebar';
 import { MobileNav } from '../../components/common/MobileNav';
 
 export const AdminRapports: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const reports = [
     { title: 'Activité Mensuelle', desc: 'Volume de tickets, taux d’occupation et efficacité.', date: 'Février 2026', type: 'PDF' },
     { title: 'Performance Lab', desc: 'Analyses des temps d’attente par département.', date: 'Hier', type: 'XLSX' },
@@ -14,7 +16,7 @@ export const AdminRapports: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <header className="mb-12 animate-fade-in">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Centre de Rapports</h1>
           <p className="text-slate-500 font-medium mt-1">Exportez les données de performance et d'activité</p>

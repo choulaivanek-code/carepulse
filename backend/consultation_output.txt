@@ -1,0 +1,4 @@
+id	ticket_id	date_debut	date_fin
+4	8	2026-04-08 13:47:51.093498	2026-04-08 20:45:46.074976
+id	statut	heure_debut
+8	COMPLETED	2026-04-08 13:47:51.091886

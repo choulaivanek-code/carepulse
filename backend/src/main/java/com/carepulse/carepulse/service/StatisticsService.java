@@ -113,8 +113,12 @@ public class StatisticsService {
 
         return StatsDashboardResponse.builder()
                 .ticketsActifs(ticketsActifsActuels)
+                .enAttente((int) enAttente)
+                .enCours((int) enCours)
+                .absences((int) noShowToday)
                 .ticketsJour((int) ticketsJour)
                 .occupation(Math.round(occupation * 10.0) / 10.0)
+                .tauxOccupation(Math.round(occupation * 10.0) / 10.0)
                 .attenteMoyenne(Math.round(attenteMoyenne * 10.0) / 10.0)
                 .medecinsActifs(medecinsActifs)
                 .noShowPourcentage(Math.round(noShowPct * 10.0) / 10.0)

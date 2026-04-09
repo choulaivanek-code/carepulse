@@ -1,6 +1,7 @@
 package com.carepulse.carepulse.dto.request;
 
 import com.carepulse.carepulse.enums.ConsultationType;
+import com.carepulse.carepulse.enums.PriorityType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -18,4 +19,8 @@ public class CreateTicketRequest {
 
     @NotNull(message = "Le type de consultation est obligatoire")
     private ConsultationType consultationType;
+
+    private PriorityType priorite;
+
+    private Long patientId;
 }

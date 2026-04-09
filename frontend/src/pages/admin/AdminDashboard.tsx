@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -34,6 +35,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 const COLORS = ['#0891B2', '#10B981', '#F59E0B', '#EF4444']; // Cyan, Emerald, Amber, Red
 
 export const AdminDashboard: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const navigate = useNavigate();
   const [showSkeleton, setShowSkeleton] = useState(true);
 
@@ -83,7 +85,7 @@ export const AdminDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex">
         <Sidebar />
-        <main className="flex-1 lg:ml-64 p-6 lg:p-10">
+        <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 transition-all duration-300`}>
            <div className="flex items-center justify-center h-full">
               <LoadingSpinner size="lg" />
            </div>
@@ -95,7 +97,7 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <header className="flex items-center justify-between mb-12 animate-fade-in">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Supervision Admin</h1>

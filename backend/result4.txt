@@ -1,0 +1,4 @@
+id	date_debut	date_fin	diagnostic	duree_reelle	examens	observations_internes	symptomes	traitement	type	medecin_id	patient_id	ticket_id
+4	2026-04-08 13:47:51.093498	2026-04-08 20:45:46.074976	NULL	417	NULL	NULL	NULL	NULL	GENERALE	2	4	8
+id	est_present	est_urgence	heure_appel	heure_creation	heure_debut	heure_fin	justification_urgence	motif	numero_ticket	position_actuelle	priorite	score_no_show	score_total	statut	temps_attente_estime	file_attente_id	medecin_id	patient_id
+8		\0	2026-04-08 13:47:21.989481	2026-04-05 10:28:22.385746	2026-04-08 13:47:51.091886	2026-04-08 20:45:46.074976	NULL	mal de tˆte 	P001	1	NORMALE	0	0	COMPLETED	15	3	NULL	4

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useMutation } from '@tanstack/react-query';
 import {
   Star, 
@@ -13,6 +14,7 @@ import { Sidebar } from '../../components/common/Sidebar';
 import { MobileNav } from '../../components/common/MobileNav';
 
 export const PatientFeedback: React.FC = () => {
+  const sidebarMargin = useSidebarMargin();
   const [ratings, setRatings] = useState({
     globale: 0,
     attente: 0,
@@ -50,7 +52,7 @@ export const PatientFeedback: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 p-6 lg:p-10 pb-28 lg:pb-10">
+      <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
         <div className="max-w-3xl mx-auto animate-fade-in">
           <header className="mb-12">
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full mb-6">

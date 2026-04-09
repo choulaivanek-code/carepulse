@@ -23,12 +23,18 @@ public class TicketController {
     private final TicketService ticketService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('PATIENT')")
+    @PreAuthorize("hasAnyAuthority('PATIENT', 'AGENT', 'ADMIN')")
     public ResponseEntity<ApiResponse<TicketResponse>> creerTicket(
             @RequestBody CreateTicketRequest request,
             @AuthenticationPrincipal User user
     ) {
-        Ticket ticket = ticketService.creerTicket(request, user.getId());
+        Long targetUserId = user.getId();
+        // Si c'est un agent ou admin qui crée pour un patient particulier
+        if (request.getPatientId() != null && (user.getRole().name().equals("AGENT") || user.getRole().name().equals("ADMIN"))) {
+            targetUserId = request.getPatientId();
+        }
+        
+        Ticket ticket = ticketService.creerTicket(request, targetUserId);
         return ResponseEntity.ok(ApiResponse.success("Ticket créé", mapToResponse(ticket)));
     }
 
@@ -107,6 +113,8 @@ public class TicketController {
     }
 
     private TicketResponse mapToResponse(Ticket t) {
+        int position = ticketService.getTicketPosition(t);
+
         return TicketResponse.builder()
                 .id(t.getId())
                 .numeroTicket(t.getNumeroTicket())
@@ -115,9 +123,10 @@ public class TicketController {
                 .scoreTotal(t.getScoreTotal())
                 .motif(t.getMotif())
                 .estUrgence(t.isEstUrgence())
-                .positionActuelle(t.getPositionActuelle())
+                .positionActuelle(position)
                 .tempsAttenteEstime(t.getTempsAttenteEstime())
                 .heureCreation(t.getHeureCreation())
+                .heureDebut(t.getHeureDebut())
                 .patientId(t.getPatient().getId())
                 .patientNom(t.getPatient().getUser().getNom())
                 .patientPrenom(t.getPatient().getUser().getPrenom())

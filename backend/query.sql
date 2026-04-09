@@ -1,0 +1,1 @@
+USE carepulse; SELECT t.id, t.numero_ticket, t.statut, t.medecin_id, t.file_attente_id FROM tickets t WHERE t.numero_ticket = 'S002'; SELECT m.id, m.file_attente_id, m.disponible, u.nom FROM medecins m JOIN users u ON m.user_id = u.id WHERE u.nom = 'atangana';  
