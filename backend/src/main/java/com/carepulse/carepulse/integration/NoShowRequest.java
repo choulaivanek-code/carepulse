@@ -1,5 +1,6 @@
 package com.carepulse.carepulse.integration;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,9 +11,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NoShowRequest {
-    private double scoreFiabilitePatient;
-    private int nombreNoShowsHistorique;
-    private int heureCreationTicket;
-    private boolean estUrgence;
-    private double distanceCliniqueKm;
+    @JsonProperty("heure")
+    private int heure;
+
+    @JsonProperty("jour_semaine")
+    private int jourSemaine;
+
+    @JsonProperty("historique_no_show")
+    private int historiqueNoShow;
+
+    @JsonProperty("priorite")
+    private int priorite;
 }

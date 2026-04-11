@@ -9,6 +9,8 @@ import com.carepulse.carepulse.enums.PriorityType;
 import com.carepulse.carepulse.exception.CarePulseException;
 import com.carepulse.carepulse.exception.ResourceNotFoundException;
 import com.carepulse.carepulse.integration.MLServiceClient;
+import com.carepulse.carepulse.integration.WaitTimeRequest;
+import com.carepulse.carepulse.integration.NoShowRequest;
 import com.carepulse.carepulse.repository.*;
 import com.carepulse.carepulse.util.Constants;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,10 @@ public class TicketService {
     private final PriorisationService priorisationService;
     private final FileAttenteService fileAttenteService;
     private final WebSocketService webSocketService;
+    private final NotificationService notificationService;
+    private final AgentRepository agentRepository;
     private final MLServiceClient mlServiceClient;
+    private final ParametreSystemeRepository parametreSystemeRepository;
 
     @PostConstruct
     public void reassignerTicketsOrphelins() {
@@ -54,6 +59,11 @@ public class TicketService {
         List<Ticket> ticketsSansMedecin = ticketRepository.findByMedecinIsNullAndStatutIn(statutsActifs);
         
         for (Ticket ticket : ticketsSansMedecin) {
+            if (ticket.getFileAttente() == null) {
+                log.warn("Ticket {} n'a pas de file d'attente, saut de réassignation", ticket.getNumeroTicket());
+                continue;
+            }
+            
             medecinRepository.findFirstByFileAttenteAndDisponibleTrue(ticket.getFileAttente())
                 .ifPresent(medecin -> {
                     log.info("Réassignation du ticket {} au médecin {}", ticket.getNumeroTicket(), medecin.getUser().getNom());
@@ -97,13 +107,58 @@ public class TicketService {
                 .statut(TicketStatus.WAITING)
                 .priorite(request.getPriorite() != null ? request.getPriorite() : PriorityType.NORMAL)
                 .motif(request.getMotif())
-                .estUrgence(PriorityType.URGENT.equals(request.getPriorite()) || request.isEstUrgence())
+                .estUrgence(PriorityType.URGENT.equals(request.getPriorite()) || request.getEstUrgence())
                 .justificationUrgence(request.getJustificationUrgence())
                 .heureCreation(LocalDateTime.now())
                 .estPresent(true)
                 .build();
 
         ticket.setScoreTotal(priorisationService.calculerScore(ticket, patient));
+
+        // Intégration IA Predictive
+        String moteurML = "false";
+        try {
+            moteurML = parametreSystemeRepository.findByCle("moteur_ml")
+                    .map(ParametreSysteme::getValeur)
+                    .orElse("false");
+        } catch (Exception e) {
+            log.warn("Erreur lecture moteur_ml, fallback simple");
+        }
+
+        if ("true".equals(moteurML)) {
+            try {
+                WaitTimeRequest wtReq = WaitTimeRequest.builder()
+                        .heure(LocalDateTime.now().getHour())
+                        .jourSemaine(LocalDateTime.now().getDayOfWeek().getValue())
+                        .fileId(file.getId().intValue())
+                        .nbTicketsActifs((int) ticketRepository.countByFileAttenteAndStatutIn(file, 
+                            List.of(TicketStatus.WAITING, TicketStatus.PRESENT, TicketStatus.READY)))
+                        .priorite(ticket.getPriorite().ordinal())
+                        .build();
+                
+                com.carepulse.carepulse.integration.WaitTimeResponse wtRes = mlServiceClient.predictWaitTime(wtReq);
+                ticket.setTempsAttenteEstime(wtRes.getTempsAttenteMinutes());
+
+                NoShowRequest nsReq = NoShowRequest.builder()
+                        .heure(LocalDateTime.now().getHour())
+                        .jourSemaine(LocalDateTime.now().getDayOfWeek().getValue())
+                        .historiqueNoShow(patient.getNombreNoShows())
+                        .priorite(ticket.getPriorite().ordinal())
+                        .build();
+                
+                com.carepulse.carepulse.integration.NoShowResponse nsRes = mlServiceClient.predictNoShow(nsReq);
+                ticket.setScoreNoShow(nsRes.getScoreNoShow());
+                
+                log.info("IA : Temps attendu={} min, Score No-Show={}", ticket.getTempsAttenteEstime(), ticket.getScoreNoShow());
+            } catch (Exception e) {
+                log.error("Échec prédiction IA, utilisation fallback: {}", e.getMessage());
+                ticket.setTempsAttenteEstime(15);
+                ticket.setScoreNoShow(0.0);
+            }
+        } else {
+            ticket.setTempsAttenteEstime(15);
+            ticket.setScoreNoShow(0.0);
+        }
 
         // Trouve un médecin disponible dans la file choisie
         medecinRepository.findFirstByFileAttenteAndDisponibleTrue(file)
@@ -112,6 +167,27 @@ public class TicketService {
         ticketRepository.save(ticket);
         
         fileAttenteService.recalculerTousLesTemps(file.getId());
+
+        // Notifications
+        // 1. Pour le patient
+        notificationService.envoyerNotification(
+            userId,
+            "Ticket créé",
+            "Votre ticket " + ticket.getNumeroTicket() + " a été créé",
+            com.carepulse.carepulse.enums.NotificationType.TICKET_CREE,
+            ticket.getId()
+        );
+
+        // 2. Pour les agents
+        agentRepository.findAll().forEach(agent -> 
+            notificationService.envoyerNotification(
+                agent.getUser().getId(),
+                "Nouveau ticket",
+                "Nouveau ticket " + ticket.getNumeroTicket() + " — " + ticket.getPatient().getUser().getPrenom(),
+                com.carepulse.carepulse.enums.NotificationType.NOUVEAU_TICKET,
+                ticket.getId()
+            )
+        );
         
         return ticket;
     }
@@ -168,6 +244,25 @@ public class TicketService {
         
         ticketRepository.save(suivant);
         
+        // Notifications
+        // 1. Pour le patient
+        notificationService.envoyerNotification(
+            suivant.getPatient().getUser().getId(),
+            "C'est votre tour !",
+            "Présentez-vous au cabinet du Dr. " + suivant.getMedecin().getUser().getNom(),
+            com.carepulse.carepulse.enums.NotificationType.APPEL_PATIENT,
+            suivant.getId()
+        );
+
+        // 2. Pour le médecin
+        notificationService.envoyerNotification(
+            suivant.getMedecin().getUser().getId(),
+            "Patient prêt",
+            "Le patient " + suivant.getPatient().getUser().getPrenom() + " est prêt",
+            com.carepulse.carepulse.enums.NotificationType.PATIENT_PRET,
+            suivant.getId()
+        );
+
         webSocketService.sendTicketUpdate(suivant.getId(), "READY", 0, 0, "Vous êtes appelé en salle de consultation");
         fileAttenteService.recalculerTousLesTemps(suivant.getFileAttente().getId());
         
@@ -189,6 +284,31 @@ public class TicketService {
         ticket.setStatut(TicketStatus.NO_SHOW);
         ticketRepository.save(ticket);
         gererNoShow(ticketId);
+
+        // Notifier tous les agents
+        agentRepository.findAll().forEach(agent ->
+            notificationService.envoyerNotification(
+                agent.getUser().getId(),
+                "Patient absent",
+                "Le patient " + ticket.getPatient().getUser().getPrenom()
+                + " " + ticket.getPatient().getUser().getNom()
+                + " a signalé son absence — Ticket " + ticket.getNumeroTicket(),
+                com.carepulse.carepulse.enums.NotificationType.ABSENCE_SIGNALEE,
+                ticket.getId()
+            )
+        );
+
+        // Notifier le médecin si assigné
+        if (ticket.getMedecin() != null) {
+            notificationService.envoyerNotification(
+                ticket.getMedecin().getUser().getId(),
+                "Patient absent",
+                "Le patient " + ticket.getPatient().getUser().getPrenom()
+                + " ne se présentera pas — Ticket " + ticket.getNumeroTicket(),
+                com.carepulse.carepulse.enums.NotificationType.ABSENCE_SIGNALEE,
+                ticket.getId()
+            );
+        }
     }
 
     @Transactional
@@ -197,6 +317,32 @@ public class TicketService {
         ticket.setStatut(TicketStatus.CANCELLED);
         ticketRepository.save(ticket);
         fileAttenteService.recalculerTousLesTemps(ticket.getFileAttente().getId());
+
+        // Notifier tous les agents
+        agentRepository.findAll().forEach(agent ->
+            notificationService.envoyerNotification(
+                agent.getUser().getId(),
+                "Ticket annulé",
+                "Le patient " + ticket.getPatient().getUser().getPrenom()
+                + " " + ticket.getPatient().getUser().getNom()
+                + " a annulé son ticket " + ticket.getNumeroTicket()
+                + " — " + ticket.getFileAttente().getNom(),
+                com.carepulse.carepulse.enums.NotificationType.TICKET_ANNULE,
+                ticket.getId()
+            )
+        );
+
+        // Notifier le médecin si assigné
+        if (ticket.getMedecin() != null) {
+            notificationService.envoyerNotification(
+                ticket.getMedecin().getUser().getId(),
+                "Ticket annulé",
+                "Le patient " + ticket.getPatient().getUser().getPrenom()
+                + " a annulé son ticket " + ticket.getNumeroTicket(),
+                com.carepulse.carepulse.enums.NotificationType.TICKET_ANNULE,
+                ticket.getId()
+            );
+        }
     }
 
     public void gererNoShow(Long ticketId) {

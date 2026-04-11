@@ -36,7 +36,7 @@ public class Medecin {
 
     @Column(nullable = false)
     @Builder.Default
-    private boolean disponible = true;
+    private Boolean disponible = true;
 
     private String joursTravail;
     private LocalTime heureDebut;

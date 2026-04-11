@@ -1,5 +1,6 @@
 package com.carepulse.carepulse.integration;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,6 +11,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WaitTimeResponse {
-    private double tempsAttenteMinutes;
-    private double margeErreurMinutes;
+    @JsonProperty("temps_attente_minutes")
+    private int tempsAttenteMinutes;
+
+    @JsonProperty("nb_samples")
+    private int nbSamples;
+
+    @JsonProperty("type")
+    private String type;
 }

@@ -45,10 +45,10 @@ public class MedecinController {
     public ResponseEntity<ApiResponse<MedecinResponse>> togglePause(@AuthenticationPrincipal User user) {
         Medecin medecin = medecinRepository.findByUserEmail(user.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Médecin non trouvé"));
-        medecin.setDisponible(!medecin.isDisponible());
+        medecin.setDisponible(!medecin.getDisponible());
         medecinRepository.save(medecin);
         return ResponseEntity.ok(ApiResponse.success(
-                medecin.isDisponible() ? "Médecin en ligne" : "Médecin en pause", 
+                medecin.getDisponible() ? "Médecin en ligne" : "Médecin en pause", 
                 mapToResponse(medecin)
         ));
     }
@@ -62,7 +62,7 @@ public class MedecinController {
                 .joursTravail(m.getJoursTravail())
                 .heureDebut(m.getHeureDebut())
                 .heureFin(m.getHeureFin())
-                .disponible(m.isDisponible())
+                .disponible(m.getDisponible())
                 .fileAttenteId(m.getFileAttente() != null ? m.getFileAttente().getId() : null)
                 .fileAttenteNom(m.getFileAttente() != null ? m.getFileAttente().getNom() : null)
                 .build();

@@ -14,7 +14,7 @@ public class CreateTicketRequest {
     @NotBlank(message = "Le motif est obligatoire")
     private String motif;
 
-    private boolean estUrgence;
+    private Boolean estUrgence;
     private String justificationUrgence;
 
     @NotNull(message = "Le type de consultation est obligatoire")

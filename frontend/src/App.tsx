@@ -34,6 +34,8 @@ import { AdminML } from './pages/admin/AdminML';
 // Common
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
+import { useWebSocket } from './hooks/useWebSocket';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -44,6 +46,8 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useWebSocket();
+  
   return (
     <SidebarProvider>
     <QueryClientProvider client={queryClient}>

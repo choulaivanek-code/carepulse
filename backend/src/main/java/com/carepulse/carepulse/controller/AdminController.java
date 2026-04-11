@@ -55,7 +55,7 @@ public class AdminController {
                 .prenom(user.getPrenom())
                 .telephone(user.getTelephone())
                 .role(user.getRole())
-                .active(user.isActive())
+                .active(user.getActive())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

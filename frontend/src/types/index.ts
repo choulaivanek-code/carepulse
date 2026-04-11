@@ -85,6 +85,7 @@ export interface FileAttente {
 export interface Message {
   id: number;
   contenu: string;
+  expediteurId: number;
   expediteurNom: string;
   statut: string;
   dateEnvoi: string;

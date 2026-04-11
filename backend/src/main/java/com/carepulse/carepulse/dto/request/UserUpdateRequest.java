@@ -31,7 +31,7 @@ public class UserUpdateRequest {
 
     private String poste;
 
-    private boolean active;
+    private Boolean active;
     
-    private boolean disponible;
+    private Boolean disponible;
 }

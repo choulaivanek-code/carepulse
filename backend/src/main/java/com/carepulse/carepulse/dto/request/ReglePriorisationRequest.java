@@ -12,6 +12,6 @@ public class ReglePriorisationRequest {
     private String critere;
     private double valeurSeuil;
     private int scoreAjoute;
-    private boolean actif;
+    private Boolean actif;
     private int ordreApplication;
 }

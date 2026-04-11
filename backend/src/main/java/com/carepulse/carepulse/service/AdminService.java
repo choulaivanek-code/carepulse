@@ -87,7 +87,7 @@ public class AdminService {
                 .user(user)
                 .specialite(request.getSpecialite())
                 .numeroOrdre(request.getNumeroOrdre())
-                .disponible(request.isDisponible())
+                .disponible(request.getDisponible())
                 .joursTravail(request.getJoursTravail())
                 .heureDebut(request.getHeureDebut())
                 .heureFin(request.getHeureFin())
@@ -141,7 +141,7 @@ public class AdminService {
         user.setNom(request.getNom());
         user.setPrenom(request.getPrenom());
         user.setTelephone(request.getTelephone());
-        user.setActive(request.isActive());
+        user.setActive(request.getActive());
 
         if (user.getRole() == RoleType.MEDECIN) {
             Medecin medecin = medecinRepository.findByUser(user)
@@ -155,7 +155,7 @@ public class AdminService {
             if (request.getHeureFin() != null && !request.getHeureFin().isBlank()) {
                 medecin.setHeureFin(LocalTime.parse(request.getHeureFin()));
             }
-            medecin.setDisponible(request.isDisponible());
+            medecin.setDisponible(request.getDisponible());
 
             if (request.getFileAttenteId() != null) {
                 medecin.setFileAttente(fileAttenteRepository.findById(request.getFileAttenteId())
@@ -205,9 +205,9 @@ public class AdminService {
             throw new RuntimeException("Vous ne pouvez pas désactiver votre propre compte");
         }
 
-        user.setActive(!user.isActive());
+        user.setActive(!user.getActive());
         userRepository.save(user);
-        log.info("Statut utilisateur modifié ({}): {} -> {}", user.getEmail(), !user.isActive(), user.isActive());
+        log.info("Statut utilisateur modifié ({}): {} -> {}", user.getEmail(), !user.getActive(), user.getActive());
     }
 
     public List<ReglePriorisation> getRegles() {
@@ -222,7 +222,7 @@ public class AdminService {
                 .critere(request.getCritere())
                 .valeurSeuil(request.getValeurSeuil())
                 .scoreAjoute(request.getScoreAjoute())
-                .actif(request.isActif())
+                .actif(request.getActif())
                 .ordreApplication(request.getOrdreApplication())
                 .build();
         reglePriorisationRepository.save(regle);

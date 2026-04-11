@@ -21,7 +21,7 @@ public class FileAttente {
     private String type; // String simple, pas enum
 
     @Builder.Default
-    private boolean actif = true;
+    private Boolean actif = true;
 
     @Column(name = "capacite_max")
     private int capaciteMax;

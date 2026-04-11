@@ -4,6 +4,8 @@ import com.carepulse.carepulse.dto.response.StatsDashboardResponse;
 import com.carepulse.carepulse.entity.Medecin;
 import com.carepulse.carepulse.entity.ParametreSysteme;
 import com.carepulse.carepulse.enums.TicketStatus;
+import com.carepulse.carepulse.entity.Ticket;
+import com.carepulse.carepulse.repository.ConsultationRepository;
 import com.carepulse.carepulse.repository.FeedbackRepository;
 import com.carepulse.carepulse.repository.MedecinRepository;
 import com.carepulse.carepulse.repository.ParametreSystemeRepository;
@@ -27,6 +29,7 @@ public class StatisticsService {
     private final MedecinRepository medecinRepository;
     private final FeedbackRepository feedbackRepository;
     private final ParametreSystemeRepository parametreSystemeRepository;
+    private final ConsultationRepository consultationRepository;
 
     public StatsDashboardResponse getDashboardStats() {
         log.info("Récupération des statistiques réelles du tableau de bord");
@@ -128,6 +131,103 @@ public class StatisticsService {
                 .repartitionStatuts(repartition)
                 .topMedecins(topMedecins)
                 .comparaisonHier(comparaison)
+                .build();
+    }
+
+    public com.carepulse.carepulse.dto.response.ReportsResponse getRapports(int jours, String dateDebutStr, String dateFinStr) {
+        log.info("Génération du rapport pour {} jours ou entre {} et {}", jours, dateDebutStr, dateFinStr);
+
+        LocalDateTime debut;
+        LocalDateTime fin;
+
+        if (dateDebutStr != null && !dateDebutStr.isEmpty() && dateFinStr != null && !dateFinStr.isEmpty()) {
+            debut = LocalDate.parse(dateDebutStr).atStartOfDay();
+            fin = LocalDate.parse(dateFinStr).atTime(23, 59, 59);
+        } else {
+            fin = LocalDateTime.now();
+            debut = LocalDate.now().minusDays(jours).atStartOfDay();
+        }
+
+        // 1. KPIs Globaux
+        long totalTickets = ticketRepository.countByHeureCreationBetween(debut, fin);
+        long termines = ticketRepository.countByStatutAndHeureCreationBetween(TicketStatus.COMPLETED, debut, fin);
+        double tauxCompletion = totalTickets > 0 ? (termines * 100.0) / totalTickets : 0.0;
+
+        Double tempsMoyenCons = consultationRepository.avgDureeConsultation(debut, fin);
+        double tempsMoyen = tempsMoyenCons != null ? tempsMoyenCons : 0.0;
+
+        long noShow = ticketRepository.countByStatutAndHeureCreationBetween(TicketStatus.NO_SHOW, debut, fin);
+        double tauxNoShow = totalTickets > 0 ? (noShow * 100.0) / totalTickets : 0.0;
+
+        // 2. Tickets par jour (Graph 1)
+        List<Object[]> ticketsJourQuery = ticketRepository.countByHeureCreationGroupByJour(debut, fin);
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint> ticketsParJour = ticketsJourQuery.stream()
+                .map(res -> new com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint(res[0].toString(), ((Number) res[1]).doubleValue()))
+                .collect(Collectors.toList());
+
+        // 3. Répartition par service (Graph 2)
+        List<Object[]> servicesQuery = ticketRepository.countByFileAttenteGroupByNom(debut, fin);
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint> repartitionServices = servicesQuery.stream()
+                .map(res -> new com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint(res[0].toString(), ((Number) res[1]).doubleValue()))
+                .collect(Collectors.toList());
+
+        // 4. Tickets par heure (Graph 3) - version 24h
+        List<Object[]> heureQuery = ticketRepository.countByHeureCreationGroupByHeure(debut, fin);
+        Map<Integer, Long> hourMap = heureQuery.stream()
+                .collect(Collectors.toMap(res -> ((Number) res[0]).intValue(), res -> ((Number) res[1]).longValue()));
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint> ticketsParHeure = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            ticketsParHeure.add(new com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint(String.format("%02dh", h), (double) hourMap.getOrDefault(h, 0L)));
+        }
+
+        // 5. No-show par jour (Graph 4)
+        List<Object[]> noShowJourQuery = ticketRepository.countNoShowsByHeureCreationGroupByJour(debut, fin);
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint> noShowParJour = noShowJourQuery.stream()
+                .map(res -> new com.carepulse.carepulse.dto.response.ReportsResponse.DataPoint(res[0].toString(), ((Number) res[1]).doubleValue()))
+                .collect(Collectors.toList());
+
+        // 6. Performances Médecins (Table)
+        List<Object[]> medQuery = ticketRepository.getMedecinPerformances(debut, fin);
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.MedecinPerformance> performancesMedecins = medQuery.stream()
+                .map(res -> {
+                    Medecin m = (Medecin) res[0];
+                    Double avgSat = feedbackRepository.averageScoreByMedecin(m.getId());
+                    return com.carepulse.carepulse.dto.response.ReportsResponse.MedecinPerformance.builder()
+                            .medecin("Dr. " + m.getUser().getPrenom() + " " + m.getUser().getNom())
+                            .specialite(m.getSpecialite())
+                            .consultations(((Number) res[1]).longValue())
+                            .tempsMoyen(res[2] != null ? Math.round(((Number) res[2]).doubleValue() * 10.0) / 10.0 : 0.0)
+                            .satisfaction(avgSat != null ? String.format("%.1f/5", avgSat) : "N/A")
+                            .build();
+                })
+                .sorted(Comparator.comparing(com.carepulse.carepulse.dto.response.ReportsResponse.MedecinPerformance::getConsultations).reversed())
+                .collect(Collectors.toList());
+
+        // 7. Liste des tickets pour export CSV
+        List<Ticket> tickets = ticketRepository.findAllByHeureCreationBetweenOrderByHeureCreationDesc(debut, fin);
+        List<com.carepulse.carepulse.dto.response.ReportsResponse.TicketReportItem> listeTickets = tickets.stream()
+                .map(t -> com.carepulse.carepulse.dto.response.ReportsResponse.TicketReportItem.builder()
+                        .heureCreation(t.getHeureCreation())
+                        .numeroTicket(t.getNumeroTicket())
+                        .patientNom(t.getPatient().getUser().getPrenom() + " " + t.getPatient().getUser().getNom())
+                        .fileAttente(t.getFileAttente().getNom())
+                        .statut(t.getStatut().name())
+                        .tempsAttenteEstime(t.getTempsAttenteEstime())
+                        .medecinNom(t.getMedecin() != null ? "Dr. " + t.getMedecin().getUser().getPrenom() + " " + t.getMedecin().getUser().getNom() : "-")
+                        .build())
+                .collect(Collectors.toList());
+
+        return com.carepulse.carepulse.dto.response.ReportsResponse.builder()
+                .totalTickets(totalTickets)
+                .tauxCompletion(Math.round(tauxCompletion * 10.0) / 10.0)
+                .tempsMoyen(Math.round(tempsMoyen * 10.0) / 10.0)
+                .tauxNoShow(Math.round(tauxNoShow * 10.0) / 10.0)
+                .ticketsParJour(ticketsParJour)
+                .repartitionServices(repartitionServices)
+                .ticketsParHeure(ticketsParHeure)
+                .noShowParJour(noShowParJour)
+                .performancesMedecins(performancesMedecins)
+                .listeTickets(listeTickets)
                 .build();
     }
 

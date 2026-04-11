@@ -122,7 +122,7 @@ public class TicketController {
                 .priorite(t.getPriorite())
                 .scoreTotal(t.getScoreTotal())
                 .motif(t.getMotif())
-                .estUrgence(t.isEstUrgence())
+                .estUrgence(t.getEstUrgence())
                 .positionActuelle(position)
                 .tempsAttenteEstime(t.getTempsAttenteEstime())
                 .heureCreation(t.getHeureCreation())

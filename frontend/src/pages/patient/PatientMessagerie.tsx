@@ -1,16 +1,11 @@
-import React, { useState } from 'react';
-import { useSidebarMargin } from '../../hooks/useSidebarMargin';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Send, 
-  Search, 
-  MoreVertical, 
-  Phone, 
-  Video, 
-  Paperclip, 
-  Smile,
+  MessageSquare,
   Circle,
-  MessageSquare
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { messageApi } from '../../api/messageApi';
 import { ticketApi } from '../../api/ticketApi';
@@ -18,45 +13,56 @@ import { Sidebar } from '../../components/common/Sidebar';
 import { MobileNav } from '../../components/common/MobileNav';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
+import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 
 export const PatientMessagerie: React.FC = () => {
   const sidebarMargin = useSidebarMargin();
-  const [activeTab, setActiveTab] = useState<number | null>(null);
   const [message, setMessage] = useState('');
-
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const role = user?.role;
 
+  // 1. Fetch active ticket
   const { data: ticketsData, isLoading: ticketsLoading } = useQuery({
-    queryKey: ['mes-tickets', role],
+    queryKey: ['mes-tickets-messagerie'],
     queryFn: () => ticketApi.getMesTickets(),
-    enabled: role === 'PATIENT',
   });
 
   const tickets = ticketsData?.data?.data ?? [];
+  const activeTicket = tickets.find((t: any) =>
+    ['WAITING', 'PRESENT', 'READY', 'IN_PROGRESS'].includes(t.statut)
+  );
 
-  const { data: msgData, isLoading: msgLoading, isError: msgError } = useQuery({
-    queryKey: ['messages', activeTab],
-    queryFn: () => messageApi.getByTicket(activeTab!),
-    enabled: !!activeTab,
+  // 2. Fetch messages for active ticket
+  const { data: msgData, isLoading: msgLoading } = useQuery({
+    queryKey: ['messages', activeTicket?.id],
+    queryFn: () => messageApi.getByTicket(activeTicket!.id),
+    enabled: !!activeTicket?.id,
     refetchInterval: 5000,
   });
 
+  const messages = msgData?.data?.data ?? [];
+
+  // 3. Send message mutation
   const sendMutation = useMutation({
-    mutationFn: (text: string) => messageApi.envoyer(activeTab!, text),
+    mutationFn: (text: string) => messageApi.envoyerMessage({ ticketId: activeTicket!.id, contenu: text }),
     onSuccess: () => {
       setMessage('');
+      queryClient.invalidateQueries({ queryKey: ['messages', activeTicket?.id] });
     },
   });
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !activeTab) return;
+    if (!message.trim() || !activeTicket) return;
     sendMutation.mutate(message);
   };
 
-  const messages = msgData?.data?.data ?? [];
-  const activeTicket = tickets.find((t: any) => t.id === activeTab);
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
   const isDoctorAssigned = activeTicket?.medecinNom && activeTicket.medecinNom.trim() !== '';
 
   return (
@@ -64,145 +70,124 @@ export const PatientMessagerie: React.FC = () => {
       <Sidebar />
       <main className={`flex-1 ${sidebarMargin} flex flex-col h-screen transition-all duration-300`}>
         
-        <div className="flex-1 flex overflow-hidden">
-          {/* List - Desktop only sidebar */}
-          <div className="w-full lg:w-96 bg-white border-r border-slate-200 flex flex-col">
-            <div className="p-8 border-b border-slate-50 bg-slate-50/30">
-               <h1 className="text-2xl font-black text-slate-900 tracking-tight italic mb-6">Messages</h1>
-               <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Rechercher..." 
-                    className="input-standard bg-slate-100/50 border-transparent focus:bg-white pl-11"
-                  />
-               </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {ticketsLoading ? (
-                <div className="p-10 text-center"><LoadingSpinner /></div>
-              ) : tickets.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`w-full p-6 flex items-center gap-4 text-left border-b border-slate-50 transition-all ${
-                    activeTab === t.id ? 'bg-cyan-50/50 border-r-4 border-r-cyan-600' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="relative shrink-0">
-                    <div className="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold text-lg shadow-sm">
-                      {t.numeroTicket.charAt(0)}
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-extrabold text-slate-900 text-sm truncate">Ticket #{t.numeroTicket}</h4>
-                    </div>
-                    <p className="text-xs text-slate-500 truncate font-medium">{t.motif}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+        {ticketsLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <LoadingSpinner size="lg" />
           </div>
+        ) : !activeTicket ? (
+          /* No active ticket */
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 animate-fade-in">
+            <div className="w-24 h-24 rounded-[36px] bg-white border border-slate-100 shadow-xl flex items-center justify-center mb-8 text-cyan-600/20">
+              <MessageSquare size={48} strokeWidth={1} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight italic mb-4">Aucun ticket actif</h2>
+            <p className="text-sm text-slate-500 font-medium max-w-xs leading-relaxed">
+              Vous devez avoir un ticket actif pour utiliser la messagerie. Réservez un ticket pour commencer à discuter avec l'équipe médicale.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <header className="h-20 bg-white border-b border-slate-200 px-6 lg:px-8 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold text-sm">
+                  {activeTicket.numeroTicket?.charAt(0) || 'T'}
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 italic tracking-tight leading-none text-sm">
+                    Ticket #{activeTicket.numeroTicket}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <Circle size={8} className={isDoctorAssigned ? 'fill-emerald-500 text-emerald-500' : 'fill-amber-400 text-amber-400'} />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      {isDoctorAssigned ? `Dr. ${activeTicket.medecinNom}` : 'En attente d\'assignation'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{activeTicket.fileAttenteNom}</p>
+              </div>
+            </header>
 
-          {/* Chat Area */}
-          <div className={`flex-1 flex flex-col bg-slate-50 relative ${!activeTab ? 'hidden lg:flex' : 'flex'}`}>
-            {activeTab ? (
-              <>
-                {/* Header */}
-                <header className="h-24 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <h3 className="font-black text-slate-900 italic tracking-tight leading-none">Ticket #{tickets.find(t => t.id === activeTab)?.numeroTicket}</h3>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                         <Circle size={8} className="fill-emerald-500 text-emerald-500" />
-                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Discussion active</span>
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+              {msgLoading ? (
+                <div className="h-full flex items-center justify-center"><LoadingSpinner /></div>
+              ) : messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center gap-4 animate-fade-in">
+                  <MessageSquare size={40} className="text-slate-200" strokeWidth={1} />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest max-w-xs">
+                    Aucun message pour le moment. {isDoctorAssigned ? 'Envoyez le premier message !' : 'Un médecin doit d\'abord être assigné à votre ticket.'}
+                  </p>
+                </div>
+              ) : (
+                messages.map((m: any) => {
+                  const isMe = m.expediteurId === user?.id;
+                  return (
+                    <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                      <div className={`max-w-[75%] lg:max-w-md`}>
+                        {!isMe && (
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                            {m.expediteurNom}
+                          </p>
+                        )}
+                        <div className={`p-4 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${
+                          isMe 
+                            ? 'bg-cyan-600 text-white rounded-tr-sm' 
+                            : 'bg-white text-slate-900 border border-slate-100 rounded-tl-sm'
+                        }`}>
+                          {m.contenu}
+                        </div>
+                        <div className={`flex items-center gap-2 mt-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                            {new Date(m.dateEnvoi).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {isMe && (
+                            <span className={`text-[9px] font-bold uppercase tracking-tighter ${m.statut === 'LU' ? 'text-cyan-500' : 'text-slate-300'}`}>
+                              {m.statut === 'LU' ? '✓✓ Lu' : '✓ Envoyé'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button className="w-10 h-10 rounded-xl hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"><Phone size={20} /></button>
-                    <button className="w-10 h-10 rounded-xl hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"><Video size={20} /></button>
-                    <button className="w-10 h-10 rounded-xl hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"><MoreVertical size={20} /></button>
-                  </div>
-                </header>
+                  );
+                })
+              )}
+              <div ref={bottomRef} />
+            </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-8">
-                  {msgLoading ? (
-                    <div className="h-full flex items-center justify-center"><LoadingSpinner /></div>
-                  ) : msgError ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-                       <MessageSquare size={40} strokeWidth={1} />
-                       <p className="text-[10px] font-black uppercase tracking-widest">Erreur de chargement des messages</p>
-                    </div>
-                  ) : (
-                    messages.map((m, _idx) => {
-                      const isMe = m.expediteurNom === 'Moi';
-                      return (
-                        <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                          <div className={`max-w-md ${isMe ? 'order-2' : ''}`}>
-                            <div className={`p-5 rounded-3xl shadow-sm text-sm font-medium leading-relaxed ${
-                              isMe 
-                                ? 'bg-cyan-600 text-white rounded-tr-none' 
-                                : 'bg-white text-slate-900 border border-slate-100 rounded-tl-none'
-                            }`}>
-                              {m.contenu}
-                            </div>
-                            <p className={`text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest ${isMe ? 'text-right' : 'text-left'}`}>
-                              {m.dateEnvoi}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+            {/* Input Area */}
+            <div className="p-4 lg:p-6 bg-white border-t border-slate-200 shrink-0 mb-20 lg:mb-0">
+              {!isDoctorAssigned && (
+                <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-500" />
+                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-tight">
+                    Aucun médecin assigné : votre message sera traité par un agent.
+                  </p>
                 </div>
-
-                {/* Input */}
-                <div className="p-8 bg-white border-t border-slate-200 shrink-0 mb-20 lg:mb-0">
-                  <form onSubmit={handleSend} className="relative">
-                     <button type="button" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-600 transition-colors">
-                        <Paperclip size={20} />
-                     </button>
-                     <input 
-                       type="text" 
-                       value={message}
-                       onChange={(e) => setMessage(e.target.value)}
-                       disabled={!isDoctorAssigned}
-                       placeholder={isDoctorAssigned ? "Écrivez votre message médical..." : "En attente de l'assignation d'un médecin..."}
-                       className="input-standard pl-14 pr-32 py-4 h-14 bg-slate-50 border-none rounded-2xl disabled:bg-slate-100 disabled:text-slate-400"
-                     />
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <button type="button" className="text-slate-400 hover:text-cyan-600 p-2"><Smile size={20} /></button>
-                        <button 
-                          type="submit" 
-                          disabled={!message.trim() || !isDoctorAssigned}
-                          className="bg-cyan-600 text-white p-3 rounded-xl hover:bg-cyan-700 transition-all disabled:opacity-50 disabled:bg-slate-300 shadow-lg shadow-cyan-600/20"
-                        >
-                          <Send size={18} />
-                        </button>
-                     </div>
-                  </form>
-                </div>
-              </>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-12 animate-fade-in">
-                 <div className="w-24 h-24 rounded-[36px] bg-white border border-slate-100 shadow-xl flex items-center justify-center mb-8 text-cyan-600/20">
-                    <MessageSquare size={48} strokeWidth={1} />
-                 </div>
-                 <h2 className="text-2xl font-black text-slate-900 tracking-tight italic mb-4">Sélectionnez une discussion</h2>
-                 <p className="text-sm text-slate-500 font-medium max-w-xs leading-relaxed">
-                   Échangez en temps réel avec le secrétariat ou votre médecin traitant.
-                 </p>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+              <form onSubmit={handleSend} className="relative flex gap-3">
+                <input 
+                  type="text" 
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Écrivez votre message..."
+                  className="input-standard flex-1 py-4 h-14 bg-slate-50 border-transparent focus:bg-white focus:border-cyan-200 rounded-2xl"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!message.trim() || sendMutation.isPending}
+                  className="bg-cyan-600 text-white p-4 rounded-2xl hover:bg-cyan-700 transition-all disabled:opacity-50 disabled:bg-slate-300 shadow-lg shadow-cyan-600/20 shrink-0 flex items-center justify-center"
+                >
+                  {sendMutation.isPending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
       </main>
       <MobileNav />
     </div>
   );
 };
-

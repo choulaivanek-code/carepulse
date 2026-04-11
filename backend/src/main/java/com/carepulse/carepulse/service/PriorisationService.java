@@ -34,7 +34,7 @@ public class PriorisationService {
                     scoreTotal += regle.getScoreAjoute();
                     break;
                 case "URGENCE":
-                    if (ticket.isEstUrgence()) {
+                    if (ticket.getEstUrgence()) {
                         scoreTotal += regle.getScoreAjoute();
                     }
                     break;

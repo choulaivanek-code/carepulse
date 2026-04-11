@@ -1,6 +1,6 @@
 package com.carepulse.carepulse.dto.response;
 
-import com.carepulse.carepulse.enums.MessageStatus;
+import com.carepulse.carepulse.enums.NotificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,11 +12,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageResponse {
+public class NotificationDTO {
     private Long id;
-    private String contenu;
-    private Long expediteurId;
-    private String expediteurNom;
-    private MessageStatus statut;
-    private LocalDateTime dateEnvoi;
+    private String titre;
+    private String message;
+    private NotificationType type;
+    private LocalDateTime dateCreation;
+    private Long ticketId;
 }

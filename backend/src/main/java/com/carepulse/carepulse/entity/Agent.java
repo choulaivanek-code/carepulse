@@ -23,6 +23,7 @@ public class Agent {
     @Column(nullable = false)
     private String poste;
 
+    @Builder.Default
     @Column(nullable = false)
-    private boolean disponible = true;
+    private Boolean disponible = true;
 }

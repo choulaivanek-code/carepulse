@@ -1,18 +1,15 @@
 package com.carepulse.carepulse.service;
 
 import com.carepulse.carepulse.dto.request.CreateMessageRequest;
-import com.carepulse.carepulse.entity.Conversation;
-import com.carepulse.carepulse.entity.Message;
-import com.carepulse.carepulse.entity.Ticket;
-import com.carepulse.carepulse.entity.User;
+import com.carepulse.carepulse.dto.response.MessageResponse;
+import com.carepulse.carepulse.entity.*;
 import com.carepulse.carepulse.enums.MessageStatus;
+import com.carepulse.carepulse.exception.CarePulseException;
 import com.carepulse.carepulse.exception.ResourceNotFoundException;
-import com.carepulse.carepulse.repository.ConversationRepository;
-import com.carepulse.carepulse.repository.MessageRepository;
-import com.carepulse.carepulse.repository.TicketRepository;
-import com.carepulse.carepulse.repository.UserRepository;
+import com.carepulse.carepulse.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,75 +26,70 @@ public class MessageService {
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
+    private final AgentRepository agentRepository;
+    private final NotificationService notificationService;
 
     @Transactional
-    public Message envoyerMessage(CreateMessageRequest request, Long expediteurId) {
-        log.info("Envoi d'un message par l'utilisateur {}", expediteurId);
+    public MessageResponse envoyerMessage(CreateMessageRequest request, String userEmail) {
+        log.info("Envoi d'un message par l'utilisateur {}", userEmail);
         
-        Conversation conv = null;
+        Ticket ticket = ticketRepository.findById(request.getTicketId())
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
         
-        // 1. Try finding conversation by ID if provided
-        if (request.getConversationId() != null) {
-            conv = conversationRepository.findById(request.getConversationId()).orElse(null);
-        }
+        User expediteur = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Expéditeur non trouvé"));
         
-        // 2. If not found or not provided, try finding by ticketId
-        if (conv == null && request.getTicketId() != null) {
-            List<Conversation> existingConvs = conversationRepository.findByTicketId(request.getTicketId());
-            if (!existingConvs.isEmpty()) {
-                conv = existingConvs.get(0);
-            } else {
-                // Create a new conversation for this ticket
-                Ticket ticket = ticketRepository.findById(request.getTicketId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
-                
-                User expediteur = userRepository.findById(expediteurId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Expéditeur non trouvé"));
-                
-                User destinataire;
-                if (expediteur.getId().equals(ticket.getPatient().getUser().getId())) {
-                    // Patient -> Medecin (or fallback to staff if no medecin assigned)
+        // Trouver ou créer la conversation
+        Conversation conversation = conversationRepository
+                .findByTicket(ticket)
+                .stream().findFirst()
+                .orElseGet(() -> {
+                    // Logique destinataire
+                    User destinataire;
                     if (ticket.getMedecin() != null) {
                         destinataire = ticket.getMedecin().getUser();
                     } else {
-                        // For now, if no medecin is assigned, we might need a fallback logic or throw a clear error
-                        // but the prompt says "en créer une nouvelle automatiquement avec l'expéditeur et le destinataire"
-                        // If it's a patient, and no medecin is assigned, who is the recipient?
-                        // Usually an agent/admin. I'll throw a clear error if no recipient can be determined.
-                        throw new ResourceNotFoundException("Aucun médecin n'est encore assigné à ce ticket.");
+                        // Fallback : premier agent disponible
+                        destinataire = agentRepository.findByDisponibleTrue().stream()
+                            .findFirst()
+                            .map(Agent::getUser)
+                            .orElseThrow(() -> new CarePulseException(
+                                "La messagerie n'est pas disponible pour le moment", 
+                                HttpStatus.SERVICE_UNAVAILABLE
+                            ));
                     }
-                } else {
-                    // Staff -> Patient
-                    destinataire = ticket.getPatient().getUser();
-                }
 
-                conv = Conversation.builder()
-                        .ticket(ticket)
-                        .expediteur(expediteur)
-                        .destinataire(destinataire)
-                        .sujet("Conversation sur le ticket " + ticket.getNumeroTicket())
-                        .actif(true)
-                        .build();
-                conv = conversationRepository.save(conv);
-            }
-        }
-        
-        if (conv == null) {
-            throw new ResourceNotFoundException("Impossible de déterminer la conversation (conversationId ou ticketId invalide ou manquant)");
-        }
-        
-        User expediteur = userRepository.findById(expediteurId)
-                .orElseThrow(() -> new ResourceNotFoundException("Expéditeur non trouvé"));
+                    Conversation c = Conversation.builder()
+                            .ticket(ticket)
+                            .expediteur(expediteur)
+                            .destinataire(destinataire)
+                            .sujet("Conversation sur le ticket " + ticket.getNumeroTicket())
+                            .actif(true)
+                            .build();
+                    return conversationRepository.save(c);
+                });
 
         Message message = Message.builder()
-                .conversation(conv)
+                .conversation(conversation)
                 .expediteur(expediteur)
                 .contenu(request.getContenu())
                 .statut(MessageStatus.ENVOYE)
                 .dateEnvoi(LocalDateTime.now())
                 .build();
 
-        return messageRepository.save(message);
+        MessageResponse response = mapToResponse(messageRepository.save(message));
+
+        // Notification destinataire
+        notificationService.envoyerNotification(
+            conversation.getDestinataire().getId().equals(expediteur.getId()) ? 
+                conversation.getExpediteur().getId() : conversation.getDestinataire().getId(),
+            "Nouveau message",
+            expediteur.getPrenom() + " : " + request.getContenu().substring(0, Math.min(50, request.getContenu().length())),
+            com.carepulse.carepulse.enums.NotificationType.NOUVEAU_MESSAGE,
+            ticket.getId()
+        );
+
+        return response;
     }
 
     public List<Message> getMessagesByConversation(Long conversationId) {
@@ -127,5 +119,16 @@ public class MessageService {
                 messageRepository.save(m);
             }
         }
+    }
+
+    private MessageResponse mapToResponse(Message m) {
+        return MessageResponse.builder()
+                .id(m.getId())
+                .contenu(m.getContenu())
+                .expediteurId(m.getExpediteur().getId())
+                .expediteurNom(m.getExpediteur().getPrenom() + " " + m.getExpediteur().getNom())
+                .statut(m.getStatut())
+                .dateEnvoi(m.getDateEnvoi())
+                .build();
     }
 }

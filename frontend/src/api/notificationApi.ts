@@ -1,13 +1,16 @@
 import api from './axios';
-import type { Notification, ApiResponse } from '../types';
+import type { Notification } from '../types';
 
 export const notificationApi = {
   getNotifications: () => 
-    api.get<ApiResponse<Notification[]>>('notifications'),
+    api.get<Notification[]>('/notifications'),
     
   markAsRead: (id: number) => 
-    api.put<ApiResponse<void>>(`notifications/${id}/read`),
+    api.patch(`/notifications/${id}/lu`),
     
   markAllAsRead: () => 
-    api.put<ApiResponse<void>>('notifications/read-all'),
+    api.patch('/notifications/tout-lire'),
+
+  deleteNotification: (id: number) =>
+    api.delete(`/notifications/${id}`),
 };

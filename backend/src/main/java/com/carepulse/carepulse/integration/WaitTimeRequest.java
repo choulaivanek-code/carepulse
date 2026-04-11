@@ -1,5 +1,6 @@
 package com.carepulse.carepulse.integration;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,9 +11,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WaitTimeRequest {
-    private int nombreTicketsEnAttente;
-    private int heureJournee;
+    @JsonProperty("heure")
+    private int heure;
+
+    @JsonProperty("jour_semaine")
     private int jourSemaine;
-    private int medecinDisponibles;
-    private double dureeConsultationMoyenne;
+
+    @JsonProperty("file_id")
+    private int fileId;
+
+    @JsonProperty("nb_tickets_actifs")
+    private int nbTicketsActifs;
+
+    @JsonProperty("priorite")
+    private int priorite;
 }

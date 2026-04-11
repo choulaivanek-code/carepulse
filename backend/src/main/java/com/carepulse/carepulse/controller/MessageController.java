@@ -10,6 +10,7 @@ import com.carepulse.carepulse.repository.UserRepository;
 import com.carepulse.carepulse.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -26,16 +27,16 @@ public class MessageController {
     private final UserRepository userRepository;
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('PATIENT', 'AGENT', 'MEDECIN')")
     public ResponseEntity<ApiResponse<MessageResponse>> envoyerMessage(
             @RequestBody CreateMessageRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
-        Message message = messageService.envoyerMessage(request, user.getId());
-        return ResponseEntity.ok(ApiResponse.success("Message envoyé", mapToResponse(message)));
+        MessageResponse response = messageService.envoyerMessage(request, userDetails.getUsername());
+        return ResponseEntity.status(201).body(ApiResponse.success("Message envoyé", response));
     }
 
     @GetMapping("/conversation/{ticketId}")
+    @PreAuthorize("hasAnyAuthority('PATIENT', 'AGENT', 'MEDECIN')")
     public ResponseEntity<ApiResponse<List<MessageResponse>>> getMessagesByTicket(
             @PathVariable Long ticketId) {
         List<Message> messages = messageService.getMessagesByTicketId(ticketId);
@@ -46,6 +47,7 @@ public class MessageController {
     }
 
     @PutMapping("/conversation/{conversationId}/lire")
+    @PreAuthorize("hasAnyAuthority('PATIENT', 'AGENT', 'MEDECIN')")
     public ResponseEntity<ApiResponse<Void>> marquerCommeLu(
             @PathVariable Long conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -59,7 +61,8 @@ public class MessageController {
         return MessageResponse.builder()
                 .id(m.getId())
                 .contenu(m.getContenu())
-                .expediteurNom(m.getExpediteur().getNom())
+                .expediteurId(m.getExpediteur().getId())
+                .expediteurNom(m.getExpediteur().getPrenom() + " " + m.getExpediteur().getNom())
                 .statut(m.getStatut())
                 .dateEnvoi(m.getDateEnvoi())
                 .build();

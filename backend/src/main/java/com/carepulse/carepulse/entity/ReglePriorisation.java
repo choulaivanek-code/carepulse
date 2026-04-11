@@ -31,7 +31,7 @@ public class ReglePriorisation {
     private int scoreAjoute;
 
     @Builder.Default
-    private boolean actif = true;
+    private Boolean actif = true;
 
     @Column(name = "ordre_application")
     private int ordreApplication;

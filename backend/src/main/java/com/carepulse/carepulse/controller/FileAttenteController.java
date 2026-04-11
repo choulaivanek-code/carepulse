@@ -39,7 +39,7 @@ public class FileAttenteController {
                 .id(f.getId())
                 .nom(f.getNom())
                 .type(f.getType())
-                .actif(f.isActif())
+                .actif(f.getActif())
                 .capaciteMax(f.getCapaciteMax())
                 .nombreTicketsEnAttente(0) // Logic needed in service
                 .tempsAttenteEstime(fileAttenteService.calculerTempsAttente(f.getId()))

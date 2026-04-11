@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/ws/**"
                         ).permitAll()
+                        .requestMatchers("/api/messages/**").hasAnyAuthority("PATIENT", "AGENT", "MEDECIN")
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )

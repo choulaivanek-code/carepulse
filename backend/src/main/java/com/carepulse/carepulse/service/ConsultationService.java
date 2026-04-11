@@ -29,6 +29,7 @@ public class ConsultationService {
     private final TicketRepository ticketRepository;
     private final MedecinRepository medecinRepository;
     private final PatientRepository patientRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public Consultation demarrerConsultation(Long ticketId, Long medecinId) {
@@ -53,11 +54,22 @@ public class ConsultationService {
                 .ticket(ticket)
                 .medecin(medecin)
                 .patient(ticket.getPatient())
-                .type(ticket.isEstUrgence() ? com.carepulse.carepulse.enums.ConsultationType.URGENCE : com.carepulse.carepulse.enums.ConsultationType.GENERALE)
+                .type(ticket.getEstUrgence() ? com.carepulse.carepulse.enums.ConsultationType.URGENCE : com.carepulse.carepulse.enums.ConsultationType.GENERALE)
                 .dateDebut(LocalDateTime.now())
                 .build();
 
-        return consultationRepository.save(consultation);
+        Consultation saved = consultationRepository.save(consultation);
+
+        // Notification patient
+        notificationService.envoyerNotification(
+            ticket.getPatient().getUser().getId(),
+            "Consultation commencée",
+            "Votre consultation avec le Dr. " + medecin.getUser().getNom() + " a commencé",
+            com.carepulse.carepulse.enums.NotificationType.CONSULTATION_DEMARREE,
+            ticket.getId()
+        );
+
+        return saved;
     }
 
     @Transactional
@@ -93,6 +105,15 @@ public class ConsultationService {
         consultation.setDateFin(LocalDateTime.now());
         consultation.setDureeReelle((int) Duration.between(consultation.getDateDebut(), consultation.getDateFin()).toMinutes());
         consultationRepository.save(consultation);
+
+        // Notification patient
+        notificationService.envoyerNotification(
+            ticket.getPatient().getUser().getId(),
+            "Consultation terminée",
+            "Votre consultation est terminée. Merci de votre confiance.",
+            com.carepulse.carepulse.enums.NotificationType.CONSULTATION_TERMINEE,
+            ticket.getId()
+        );
     }
 
     public List<Consultation> getConsultationsByPatientId(Long patientId) {

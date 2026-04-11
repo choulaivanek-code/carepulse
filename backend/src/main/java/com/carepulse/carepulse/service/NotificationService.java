@@ -1,14 +1,15 @@
 package com.carepulse.carepulse.service;
 
+import com.carepulse.carepulse.dto.response.NotificationDTO;
 import com.carepulse.carepulse.entity.Notification;
 import com.carepulse.carepulse.entity.User;
 import com.carepulse.carepulse.enums.NotificationType;
 import com.carepulse.carepulse.exception.ResourceNotFoundException;
 import com.carepulse.carepulse.repository.NotificationRepository;
 import com.carepulse.carepulse.repository.UserRepository;
-import com.carepulse.carepulse.websocket.NotificationMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,47 +20,51 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class NotificationService {
-
+    
+    private final SimpMessagingTemplate messagingTemplate;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
-    private final WebSocketService webSocketService;
-
+    
     @Transactional
-    public void creerNotification(Long userId, NotificationType type, String titre, String contenu, Long ticketId) {
-        log.info("Création d'une notification pour l'utilisateur {}", userId);
-        
+    public void envoyerNotification(Long userId, String titre, String message, NotificationType type, Long ticketId) {
+        log.info("Envoi d'une notification à l'utilisateur {} : {}", userId, titre);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        Notification notif = Notification.builder()
-                .user(user)
-                .type(type)
-                .titre(titre)
-                .contenu(contenu)
-                .ticketId(ticketId)
-                .lue(false)
-                .dateCreation(LocalDateTime.now())
-                .build();
-
-        notificationRepository.save(notif);
-
-        // Envoi via WebSocket
-        NotificationMessage wsMessage = NotificationMessage.builder()
-                .userId(userId)
-                .type(type)
-                .titre(titre)
-                .contenu(contenu)
-                .ticketId(ticketId)
-                .timestamp(LocalDateTime.now())
-                .build();
+        // 1. Sauvegarder en base
+        Notification notification = Notification.builder()
+            .user(user)
+            .titre(titre)
+            .contenu(message)
+            .type(type)
+            .lue(false)
+            .dateCreation(LocalDateTime.now())
+            .ticketId(ticketId)
+            .build();
+        notificationRepository.save(notification);
         
-        webSocketService.sendNotificationToUser(userId, wsMessage);
+        // 2. Envoyer via WebSocket
+        NotificationDTO dto = NotificationDTO.builder()
+            .id(notification.getId())
+            .titre(titre)
+            .message(message)
+            .type(type)
+            .dateCreation(notification.getDateCreation())
+            .ticketId(ticketId)
+            .build();
+            
+        messagingTemplate.convertAndSendToUser(
+            userId.toString(),
+            "/queue/notifications",
+            dto
+        );
     }
 
-    public List<Notification> getNotificationsNonLues(Long userId) {
+    public List<Notification> getNotificationsPourUtilisateur(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
-        return notificationRepository.findByUserAndLueFalse(user);
+            .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        return notificationRepository.findTop20ByUserOrderByDateCreationDesc(user);
     }
 
     @Transactional
@@ -68,5 +73,22 @@ public class NotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Notification non trouvée"));
         notif.setLue(true);
         notificationRepository.save(notif);
+    }
+
+    @Transactional
+    public void marquerToutCommeLu(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        List<Notification> nonLues = notificationRepository.findByUserAndLueFalse(user);
+        nonLues.forEach(n -> n.setLue(true));
+        notificationRepository.saveAll(nonLues);
+    }
+
+    @Transactional
+    public void supprimerNotification(Long notificationId) {
+        if (!notificationRepository.existsById(notificationId)) {
+            throw new ResourceNotFoundException("Notification non trouvée");
+        }
+        notificationRepository.deleteById(notificationId);
     }
 }

@@ -45,11 +45,11 @@ public class User implements UserDetails {
 
     @Column(name = "is_active")
     @Builder.Default
-    private boolean active = true;
+    private Boolean active = true;
 
     @Column(name = "is_verified")
     @Builder.Default
-    private boolean verified = false;
+    private Boolean verified = false;
 
     @Column(name = "login_attempts")
     @Builder.Default
@@ -102,6 +102,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return active;
+        return active != null && active;
     }
 }

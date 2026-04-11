@@ -17,9 +17,11 @@ import java.time.Duration;
 public class MLServiceClient {
 
     private final WebClient webClient;
+    private final com.carepulse.carepulse.repository.ParametreSystemeRepository parametreSystemeRepository;
 
-    public MLServiceClient(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl(Constants.ML_SERVICE_URL).build();
+    public MLServiceClient(WebClient.Builder webClientBuilder, com.carepulse.carepulse.repository.ParametreSystemeRepository parametreSystemeRepository) {
+        this.webClient = webClientBuilder.baseUrl(com.carepulse.carepulse.util.Constants.ML_SERVICE_URL).build();
+        this.parametreSystemeRepository = parametreSystemeRepository;
     }
 
     public WaitTimeResponse predictWaitTime(WaitTimeRequest request) {
@@ -33,8 +35,9 @@ public class MLServiceClient {
                 .onErrorResume(e -> {
                     log.error("Erreur ML predictWaitTime, utilisation fallback: {}", e.getMessage());
                     return Mono.just(WaitTimeResponse.builder()
-                            .tempsAttenteMinutes(request.getNombreTicketsEnAttente() * Constants.DUREE_MOYENNE_CONSULTATION)
-                            .margeErreurMinutes(5.0)
+                            .tempsAttenteMinutes(15)
+                            .nbSamples(0)
+                            .type("FALLBACK")
                             .build());
                 })
                 .block();
@@ -51,31 +54,15 @@ public class MLServiceClient {
                 .onErrorResume(e -> {
                     log.error("Erreur ML predictNoShow, utilisation fallback: {}", e.getMessage());
                     return Mono.just(NoShowResponse.builder()
-                            .scoreNoShow(0.1)
+                            .scoreNoShow(0.0)
                             .risqueEleve(false)
+                            .nbSamples(0)
+                            .type("FALLBACK")
                             .build());
                 })
                 .block();
     }
 
-    public OverloadResponse detectOverload(OverloadRequest request) {
-        log.info("Appel ML pour détection surcharge");
-        return webClient.post()
-                .uri("/detect/overload")
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(OverloadResponse.class)
-                .timeout(Duration.ofSeconds(5))
-                .onErrorResume(e -> {
-                    log.error("Erreur ML detectOverload, utilisation fallback: {}", e.getMessage());
-                    return Mono.just(OverloadResponse.builder()
-                            .niveau("NORMAL")
-                            .surcharge(false)
-                            .message("Service ML indisponible")
-                            .build());
-                })
-                .block();
-    }
 
     public MLStatusResponse getStatus() {
         log.info("Récupération du statut du service ML");
@@ -101,7 +88,17 @@ public class MLServiceClient {
                 .uri("/train")
                 .retrieve()
                 .bodyToMono(Map.class)
-                .timeout(Duration.ofSeconds(30)) // L'entraînement peut être long
+                .timeout(Duration.ofSeconds(30))
+                .map(response -> {
+                    if ("success".equals(response.get("status"))) {
+                        log.info("Entraînement ML réussi, activation du moteur ML");
+                        parametreSystemeRepository.findByCle("moteur_ml").ifPresent(p -> {
+                            p.setValeur("true");
+                            parametreSystemeRepository.save(p);
+                        });
+                    }
+                    return response;
+                })
                 .onErrorResume(e -> {
                     log.error("Erreur lors du training ML : {}", e.getMessage());
                     return Mono.just(Map.of("status", "error", "message", "Service ML indisponible"));

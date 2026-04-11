@@ -30,9 +30,17 @@ export const AdminML: React.FC = () => {
 
   const trainMutation = useMutation({
     mutationFn: () => adminApi.triggerMLTraining(),
-    onSuccess: () => {
-      toast.success('Entraînement terminé ✅ — Modèles mis à jour');
-      refetch(); // Rafraîchit le statut après l'entraînement
+    onSuccess: (response: any) => {
+      const data = response?.data?.data;
+      const samples = data?.metrics?.nb_samples || 0;
+      const isReal = data?.metrics?.is_real ?? false;
+      
+      toast.success(
+        isReal 
+          ? `✅ Modèles réentraînés avec ${samples} tickets réels` 
+          : `✅ Modèles réentraînés (Données simulées : ${samples} échantillons)`
+      );
+      refetch();
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || 'Erreur : Service ML hors ligne ❌');
@@ -164,8 +172,10 @@ export const AdminML: React.FC = () => {
                               </div>
                            </div>
                            <div className="text-right">
-                              <p className="text-sm font-black text-cyan-600">{m.precision}%</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Charge {m.charge}%</p>
+                               <p className="text-sm font-black text-cyan-600">{m.precision}%</p>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                 {m.nb_samples} SAMPLES ({m.type})
+                               </p>
                            </div>
                         </div>
                       ))

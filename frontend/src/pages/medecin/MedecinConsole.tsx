@@ -21,6 +21,7 @@ import { CallNextButton } from '../../components/medecin/CallNextButton';
 import { ConsultationForm } from '../../components/medecin/ConsultationForm';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { NotificationBell } from '../../components/common/NotificationBell';
 
 export const MedecinConsole: React.FC = () => {
   const sidebarMargin = useSidebarMargin();
@@ -193,6 +194,7 @@ export const MedecinConsole: React.FC = () => {
                 {enPause ? <CheckCircle size={16} /> : <Pause size={16} />}
                 {enPause ? 'Reprendre' : 'Mettre en pause'}
              </button>
+             <NotificationBell />
              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm">
                 <Stethoscope size={24} />
              </div>

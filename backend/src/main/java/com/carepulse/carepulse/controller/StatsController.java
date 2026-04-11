@@ -24,6 +24,17 @@ public class StatsController {
     public ResponseEntity<ApiResponse<StatsDashboardResponse>> getDashboard() {
         return ResponseEntity.ok(ApiResponse.success("Statistiques du tableau de bord", statisticsService.getDashboardStats()));
     }
+
+    @GetMapping("/rapports")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<com.carepulse.carepulse.dto.response.ReportsResponse>> getRapports(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "7") int jours,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String dateDebut,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String dateFin
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Rapports statistiques", statisticsService.getRapports(jours, dateDebut, dateFin)));
+    }
+
     @GetMapping("/test-error")
     public ResponseEntity<String> testError() {
         try {

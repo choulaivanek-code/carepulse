@@ -35,6 +35,7 @@ public class ScheduledTasksService {
                     .filter(t -> t.getStatut() == TicketStatus.WAITING)
                     .count();
             
+            /* ML Surcharge - Désactivé temporairement
             OverloadRequest request = OverloadRequest.builder()
                     .nombreTicketsActifs(activeTickets)
                     .capaciteMax(file.getCapaciteMax())
@@ -44,6 +45,12 @@ public class ScheduledTasksService {
             OverloadResponse response = mlServiceClient.detectOverload(request);
             if (response.isSurcharge()) {
                 webSocketService.sendOverloadAlert(response.getNiveau(), activeTickets, response.getMessage());
+            }
+            */
+            
+            // Fallback local simple
+            if (activeTickets >= file.getCapaciteMax() * 0.9) {
+                webSocketService.sendOverloadAlert("CRITICAL", activeTickets, "Capacité maximale presque atteinte (Local)");
             }
         }
     }

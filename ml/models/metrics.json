@@ -1,1 +1,14 @@
-{"wait_time_model": {"accuracy": 0.5209, "mae": 29.48}, "no_show_model": {"accuracy": 0.52}}
+{
+  "wait_time_model": {
+    "mae": 2.65,
+    "trained_on": "2026-04-10",
+    "nb_samples": 100,
+    "type": "SIMULATED"
+  },
+  "no_show_model": {
+    "accuracy": 0.9,
+    "trained_on": "2026-04-10",
+    "nb_samples": 100,
+    "type": "SIMULATED"
+  }
+}

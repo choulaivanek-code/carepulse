@@ -16,5 +16,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
     @Query("SELECT AVG(f.noteGlobale) FROM Feedback f")
     Optional<Double> averageScore();
+
+    @Query("SELECT AVG(f.noteMedecin) FROM Feedback f JOIN f.ticket t WHERE t.medecin.id = :medecinId")
+    Double averageScoreByMedecin(@org.springframework.data.repository.query.Param("medecinId") Long medecinId);
 }
 

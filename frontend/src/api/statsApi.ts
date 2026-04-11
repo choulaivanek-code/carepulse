@@ -7,4 +7,7 @@ export const statsApi = {
     
   getEvolutionTickets: (jours: number) => 
     axios.get<ApiResponse<any>>(`stats/evolution?jours=${jours}`),
+
+  getRapports: (params: { jours?: number; dateDebut?: string; dateFin?: string }) =>
+    axios.get<ApiResponse<any>>('stats/rapports', { params }),
 };

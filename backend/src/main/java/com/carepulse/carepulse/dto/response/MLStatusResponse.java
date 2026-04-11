@@ -1,5 +1,6 @@
 package com.carepulse.carepulse.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,14 @@ public class MLStatusResponse {
         private String nom;
         private String statut;
         private double precision;
-        private int charge;
+        
+        @JsonProperty("nb_samples")
+        private int nbSamples;
+        
+        @JsonProperty("last_trained")
+        private String lastTrained;
+        
+        @JsonProperty("type")
+        private String type;
     }
 }

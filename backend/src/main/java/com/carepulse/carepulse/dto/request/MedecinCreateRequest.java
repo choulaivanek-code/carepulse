@@ -38,5 +38,6 @@ public class MedecinCreateRequest {
     private String joursTravail;
     private LocalTime heureDebut;
     private LocalTime heureFin;
-    private boolean disponible = true;
+    @Builder.Default
+    private Boolean disponible = true;
 }

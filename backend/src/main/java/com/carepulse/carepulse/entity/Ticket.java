@@ -48,7 +48,8 @@ public class Ticket {
     private String motif;
 
     @Column(name = "est_urgence")
-    private boolean estUrgence;
+    @Builder.Default
+    private Boolean estUrgence = false;
 
     @Column(name = "justification_urgence")
     private String justificationUrgence;
@@ -76,7 +77,7 @@ public class Ticket {
 
     @Column(name = "est_present")
     @Builder.Default
-    private boolean estPresent = false;
+    private Boolean estPresent = false;
 
     @PrePersist
     protected void onCreate() {

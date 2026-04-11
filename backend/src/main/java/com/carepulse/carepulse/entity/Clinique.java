@@ -37,6 +37,10 @@ public class Clinique {
     @Column(name = "heure_fermeture")
     private LocalTime heureFermeture;
 
+    @Builder.Default
+    @Column(name = "en_service")
+    private Boolean enService = true;
+
     @OneToMany(mappedBy = "clinique")
     @JsonIgnore
     private List<FileAttente> filesAttente = new ArrayList<>();
