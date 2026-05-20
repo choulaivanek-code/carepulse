@@ -22,12 +22,28 @@ import { ConsultationForm } from '../../components/medecin/ConsultationForm';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { NotificationBell } from '../../components/common/NotificationBell';
+import { useNotificationStore } from '../../store/notificationStore';
 
 export const MedecinConsole: React.FC = () => {
   const sidebarMargin = useSidebarMargin();
-  const [activeTicket, setActiveTicket] = useState<any>(null);
-  const [consultationData, setConsultationData] = useState({});
+  const [consultationData, setConsultationData] = useState<any>({});
   const [tempsEcoule, setTempsEcoule] = useState(0);
+  const notifications = useNotificationStore(s => s.notifications);
+
+  const PRIORITE_ORDER: Record<string, number> = { URGENT: 0, HIGH: 1, MODERATE: 2, NORMAL: 3 };
+
+  const jouerAlerte = () => {
+    try {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      oscillator.connect(ctx.destination);
+      oscillator.frequency.value = 880;
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.3);
+    } catch {
+      // AudioContext non supporté ou bloqué par le navigateur
+    }
+  };
 
   const formaterTemps = (secondes: number) => {
     const min = Math.floor(secondes / 60).toString().padStart(2, '0');
@@ -51,6 +67,41 @@ export const MedecinConsole: React.FC = () => {
     enabled: !!medecinInfo?.fileAttenteId,
     refetchInterval: 15000,
   });
+
+  // Écoute WebSocket — rafraîchissement instantané sur notification URGENCE
+  // Les notifications URGENCE arrivent via le store (useWebSocket global les intercepte déjà)
+  const lastUrgenceRef = React.useRef<number>(0);
+  React.useEffect(() => {
+    const derniere = notifications.find((n: any) => n.type === 'URGENCE');
+    if (!derniere) return;
+    const notifId = derniere.id ?? 0;
+    if (notifId !== lastUrgenceRef.current) {
+      lastUrgenceRef.current = notifId;
+      refetchTickets();
+      jouerAlerte();
+      toast(
+        () => (
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🚨</span>
+            <div>
+              <p className="font-black text-sm text-white">{derniere.titre}</p>
+              <p className="text-xs text-white/80 font-medium mt-0.5">{derniere.message || derniere.contenu}</p>
+            </div>
+          </div>
+        ),
+        {
+          duration: 8000,
+          style: {
+            background: '#dc2626',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '16px',
+            fontWeight: 'bold',
+          },
+        }
+      );
+    }
+  }, [notifications, refetchTickets]);
 
   // Détection du changement de file d'attente
   React.useEffect(() => {
@@ -84,30 +135,60 @@ export const MedecinConsole: React.FC = () => {
     },
   });
 
-  const appelerPatientMutation = useMutation({
-    mutationFn: (id: number) => ticketApi.appellerPatient(id),
-    onSuccess: () => {
-      toast.success('Patient appelé !');
+  // Mutation pour démarrer la consultation
+  const demarrerMutation = useMutation({
+    mutationFn: (id: number) => consultationApi.demarrer(id),
+    onSuccess: (res) => {
+      toast.success('Consultation démarrée !');
+      // On pré-remplit les données si elles existent (cas d'une reprise)
+      if (res.data.data) {
+        setConsultationData({
+          symptomes: res.data.data.symptomes || '',
+          diagnostic: res.data.data.diagnostic || '',
+          traitement: res.data.data.traitement || '',
+          examens: res.data.data.examens || '',
+          notes: res.data.data.observationsInternes || '',
+        });
+      }
       refetchTickets();
     },
   });
 
-  const demarrerMutation = useMutation({
-    mutationFn: (id: number) => consultationApi.demarrer(id),
+  // Mutation pour sauvegarder sans clôturer
+  const sauvegarderMutation = useMutation({
+    mutationFn: (ticketId: number) => consultationApi.updateContenu(ticketId, {
+      symptomes: consultationData.symptomes,
+      diagnostic: consultationData.diagnostic,
+      traitement: consultationData.traitement,
+      examens: consultationData.examens,
+      observationsInternes: consultationData.notes,
+    }),
     onSuccess: () => {
-      toast.success('Consultation démarrée !');
-      refetchTickets();
-    },
+      toast.success('Notes sauvegardées');
+    }
   });
 
   const cloturerMutation = useMutation({
-    mutationFn: (ticketId: number) => consultationApi.cloturer(ticketId),
+    mutationFn: async (ticketId: number) => {
+      // 1. Sauvegarder le contenu médical d'abord
+      await consultationApi.updateContenu(ticketId, {
+        symptomes: consultationData.symptomes,
+        diagnostic: consultationData.diagnostic,
+        traitement: consultationData.traitement,
+        examens: consultationData.examens,
+        observationsInternes: consultationData.notes,
+      });
+      // 2. Clôturer la consultation
+      return consultationApi.cloturer(ticketId);
+    },
     onSuccess: () => {
-      toast.success('Consultation clôturée !');
-      setActiveTicket(null);
+      toast.success('Consultation clôturée et enregistrée !');
       setConsultationData({});
       refetchTickets();
     },
+    onError: (err: any) => {
+      toast.error('Erreur lors de la clôture : ' + (err.response?.data?.message || err.message));
+    }
   });
 
   const [showNoShowModal, setShowNoShowModal] = useState(false);
@@ -116,7 +197,6 @@ export const MedecinConsole: React.FC = () => {
     onSuccess: () => {
       toast.success('Patient marqué comme absent.');
       setShowNoShowModal(false);
-      setActiveTicket(null);
       setConsultationData({});
       refetchTickets();
     },
@@ -127,31 +207,64 @@ export const MedecinConsole: React.FC = () => {
   });
 
   const tickets = ticketsData?.data?.data ?? [];
-  const prochainTicket = tickets.find(t => t.statut === 'READY');
-  const fileAttente = tickets.filter(t => t.statut === 'WAITING').slice(0, 5);
-  const currentConsultation = tickets.find(t => t.statut === 'IN_PROGRESS');
+  const ticketREADY = tickets.find((t: any) => t.statut === 'READY');
+  const activeTicket = tickets.find((t: any) => t.statut === 'IN_PROGRESS');
+  
+  const fileAttentePlusPrioritaire = [...tickets]
+    .filter((t: any) => t.statut === 'WAITING' || t.statut === 'PRESENT')
+    .slice(0, 5);
+  
+  const hasUrgent = fileAttentePlusPrioritaire.some((t: any) => t.priorite === 'URGENT');
 
-  // Handle activeTicket sync if it's currently IN_PROGRESS
-  React.useEffect(() => {
-    if (currentConsultation && !activeTicket) {
-      setActiveTicket(currentConsultation);
+  const getPrioriteBadge = (priorite: string) => {
+    switch (priorite) {
+      case 'URGENT':
+        return (
+          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse">
+            ⚠️ URGENT
+          </span>
+        );
+      case 'HIGH':
+        return <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">HIGH</span>;
+      case 'MODERATE':
+        return <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">MODERATE</span>;
+      default:
+        return <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">NORMAL</span>;
     }
-  }, [currentConsultation, activeTicket]);
+  };
 
+  // Gestion du chronomètre basé sur heureDebut de l'API
   React.useEffect(() => {
     if (!activeTicket?.heureDebut) {
-        setTempsEcoule(0);
-        return;
+      setTempsEcoule(0);
+      return;
     }
-    
-    const interval = setInterval(() => {
+
+    const demarrerChrono = () => {
+      if (!activeTicket?.heureDebut) return;
       const debut = new Date(activeTicket.heureDebut).getTime();
       const maintenant = Date.now();
-      setTempsEcoule(Math.floor((maintenant - debut) / 1000));
-    }, 1000);
-    
+      const secondes = Math.max(0, Math.floor((maintenant - debut) / 1000));
+      setTempsEcoule(secondes);
+    };
+
+    demarrerChrono();
+    const interval = setInterval(demarrerChrono, 1000);
     return () => clearInterval(interval);
-  }, [activeTicket?.heureDebut]);
+  }, [activeTicket?.heureDebut, activeTicket?.id]);
+
+  // Synchronisation des données lors de la reprise d'une consultation (F5)
+  const [dataSyncDone, setDataSyncDone] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (activeTicket?.id && dataSyncDone !== String(activeTicket.id)) {
+      // Si on a un ticket actif mais pas de données chargées, on tente de les récupérer
+      // Comme on n'a pas d'API directe getConsultationByTicket, on utilise demarrer qui est idempotent
+      demarrerMutation.mutate(activeTicket.id);
+      setDataSyncDone(String(activeTicket.id));
+    } else if (!activeTicket?.id) {
+      setDataSyncDone(null);
+    }
+  }, [activeTicket?.id, dataSyncDone]);
 
   if (medecinLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><LoadingSpinner /></div>;
 
@@ -205,37 +318,46 @@ export const MedecinConsole: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-10 items-center animate-fade-in">
              <div className="flex flex-col gap-8 items-center justify-center">
                 <CallNextButton 
-                  onClick={() => prochainTicket && appelerPatientMutation.mutate(prochainTicket.id)}
-                  disabled={!prochainTicket || enPause}
-                  isLoading={appelerPatientMutation.isPending}
+                  onClick={() => ticketREADY && demarrerMutation.mutate(ticketREADY.id)}
+                  disabled={!ticketREADY || enPause}
+                  isLoading={demarrerMutation.isPending}
                 />
-                {!activeTicket && tickets.find(t => t.statut === 'READY') && (
-                  <button 
-                    onClick={() => demarrerMutation.mutate(tickets.find(t => t.statut === 'READY')!.id)}
-                    className="btn-primary py-4 px-10 bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
-                  >
-                    Démarrer Consultation
-                  </button>
+                {ticketREADY && (
+                  <div className="flex flex-col items-center gap-4">
+                    <button 
+                      onClick={() => ticketREADY && demarrerMutation.mutate(ticketREADY.id)}
+                      disabled={demarrerMutation.isPending}
+                      className="btn-primary py-4 px-10 bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+                    >
+                      {demarrerMutation.isPending ? 'Démarrage...' : 'Entrer en Cabinet'}
+                    </button>
+                    <button 
+                      onClick={() => setShowNoShowModal(true)}
+                      className="text-[10px] font-black text-amber-600 uppercase tracking-widest hover:underline"
+                    >
+                      Signaler No-Show
+                    </button>
+                  </div>
                 )}
              </div>
              
              <div className="space-y-8">
                 <h2 className="section-label">PROCHAIN PATIENT</h2>
-                {prochainTicket ? (
-                  <div className="card-premium p-10 relative overflow-hidden">
+                {ticketREADY ? (
+                  <div className="card-premium p-10 relative overflow-hidden bg-white">
                      <div className="absolute top-0 right-0 p-8 opacity-5">
                        <UserIcon size={120} />
                      </div>
                      <div className="relative z-10 flex flex-col items-center text-center">
-                        <p className="text-3xl font-black text-cyan-600 italic tracking-tighter mb-4">#{prochainTicket.numeroTicket}</p>
+                        <p className="text-3xl font-black text-cyan-600 italic tracking-tighter mb-4">#{ticketREADY.numeroTicket}</p>
                         <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
-                          {prochainTicket.patientPrenom} {prochainTicket.patientNom}
+                          {ticketREADY.patientPrenom} {ticketREADY.patientNom}
                         </h3>
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">
-                           <div className="flex items-center gap-1"><Clock size={12} /> {prochainTicket.tempsAttenteEstime} min</div>
-                           <div className="flex items-center gap-1"><TrendingUp size={12} /> Score {prochainTicket.scoreTotal}</div>
+                           <div className="flex items-center gap-1"><Clock size={12} /> {ticketREADY.tempsAttenteEstime} min</div>
+                           <div className="flex items-center gap-1"><TrendingUp size={12} /> Score {ticketREADY.scoreTotal}</div>
                         </div>
-                        <StatusBadge statut={prochainTicket.statut} />
+                        <StatusBadge statut={ticketREADY.statut} />
                      </div>
                   </div>
                 ) : (
@@ -244,16 +366,38 @@ export const MedecinConsole: React.FC = () => {
                   </div>
                 )}
 
-                <h2 className="section-label pt-4">FILE D'ATTENTE RECUE</h2>
+                <h2 className="section-label pt-4">FILE D'ATTENTE REÇUE</h2>
+
+                {hasUrgent && (
+                  <div className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-red-600 text-white animate-pulse">
+                    <span className="text-xl">⚠️</span>
+                    <p className="text-xs font-black uppercase tracking-widest">
+                      {fileAttentePlusPrioritaire.filter((t: any) => t.priorite === 'URGENT').length} patient(s) urgent(s) en tête de file
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-3">
-                   {fileAttente?.map(t => (
-                     <div key={t.id} className="card-premium p-5 flex items-center justify-between">
+                   {fileAttentePlusPrioritaire?.map((t: any) => (
+                     <div
+                       key={t.id}
+                       className={`card-premium p-5 flex items-center justify-between transition-all hover:bg-white ${
+                         t.priorite === 'URGENT' ? 'border-red-200 bg-red-50/30' : ''
+                       }`}
+                     >
                         <div className="flex items-center gap-4">
-                           <p className="text-sm font-black text-cyan-600 italic">#{t.numeroTicket}</p>
+                           <p className={`text-sm font-black italic ${
+                             t.priorite === 'URGENT' ? 'text-red-600' : 'text-cyan-600'
+                           }`}>#{t.numeroTicket}</p>
                            <p className="text-sm font-bold text-slate-900">{t.patientPrenom} {t.patientNom}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.priorite}</span>
+                           {t.statut === 'PRESENT' && (
+                             <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 animate-pulse">
+                               PRÉSENT
+                             </span>
+                           )}
+                           {getPrioriteBadge(t.priorite)}
                            <ChevronRight size={14} className="text-slate-200" />
                         </div>
                      </div>
@@ -269,7 +413,7 @@ export const MedecinConsole: React.FC = () => {
                       <div>
                          <p className="section-label mb-2 text-emerald-600">CONSULTATION EN COURS</p>
                          <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">
-                           {activeTicket.patientPrenom} {activeTicket.patientNom}
+                           {activeTicket?.patientPrenom} {activeTicket?.patientNom}
                          </h2>
                       </div>
                       <div className="text-right">
@@ -281,15 +425,15 @@ export const MedecinConsole: React.FC = () => {
                    <div className="grid sm:grid-cols-3 gap-6 pb-10 border-b border-slate-50">
                       <div>
                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Motif</p>
-                         <p className="text-sm font-bold text-slate-700 italic">"{activeTicket.motif}"</p>
+                         <p className="text-sm font-bold text-slate-700 italic">"{activeTicket?.motif}"</p>
                       </div>
                       <div>
                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Priorité</p>
-                         <StatusBadge statut={activeTicket.statut} />
+                         <StatusBadge statut={activeTicket?.statut} />
                       </div>
                       <div>
                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">N° Ticket</p>
-                         <p className="text-xl font-black text-cyan-600 tracking-tighter">#{activeTicket.numeroTicket}</p>
+                         <p className="text-xl font-black text-cyan-600 tracking-tighter">#{activeTicket?.numeroTicket}</p>
                       </div>
                    </div>
 
@@ -302,23 +446,25 @@ export const MedecinConsole: React.FC = () => {
              <div className="space-y-8">
                 <div className="card-premium p-8 bg-slate-900 text-white border-none shadow-2xl">
                    <h3 className="text-lg font-black italic tracking-tight mb-6">Actions Patient</h3>
-                   <div className="space-y-4">
-                      <button 
-                        onClick={() => cloturerMutation.mutate(activeTicket.id)}
-                        disabled={cloturerMutation.isPending}
-                        className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/20"
-                      >
-                         <CheckCircle size={16} />
-                         Clôturer Consultation
-                      </button>
-                      <button 
-                        onClick={() => setShowNoShowModal(true)}
-                        className="w-full py-4 rounded-xl bg-amber-500/10 text-amber-500 font-black text-[10px] uppercase tracking-widest hover:bg-amber-500/20 transition-all flex items-center justify-center gap-3 border border-amber-500/20"
-                      >
-                         <AlertCircle size={16} />
-                         Marquer No-Show
-                      </button>
-                   </div>
+                    <div className="space-y-4">
+                       <button 
+                         onClick={() => activeTicket && sauvegarderMutation.mutate(activeTicket.id)}
+                         disabled={sauvegarderMutation.isPending}
+                         className="w-full py-4 rounded-xl bg-slate-800 text-white/70 font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all flex items-center justify-center gap-3 border border-white/5"
+                       >
+                          <ChevronRight size={16} />
+                          {sauvegarderMutation.isPending ? 'Enregistrement...' : 'Enregistrer Brouillon'}
+                       </button>
+                       <button 
+                         onClick={() => activeTicket && cloturerMutation.mutate(activeTicket.id)}
+                         disabled={cloturerMutation.isPending}
+                         className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/20"
+                       >
+                          <CheckCircle size={16} />
+                          {cloturerMutation.isPending ? 'Clôture en cours...' : 'Clôturer Consultation'}
+                       </button>
+                        {/* Bouton No-Show retiré : accessible uniquement pour les patients en statut READY */}
+                    </div>
                 </div>
 
                 <div className="card-premium p-8">
@@ -356,7 +502,7 @@ export const MedecinConsole: React.FC = () => {
               </button>
               <button 
                 onClick={() => {
-                  if (activeTicket) noShowMutation.mutate(activeTicket.id);
+                  if (ticketREADY) noShowMutation.mutate(ticketREADY.id);
                 }}
                 disabled={noShowMutation.isPending}
                 className="flex-1 py-3.5 rounded-xl bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-70"

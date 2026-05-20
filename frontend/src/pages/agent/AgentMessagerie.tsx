@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Send, 
@@ -24,6 +26,7 @@ export const AgentMessagerie: React.FC = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const stompClient = useRef<Client | null>(null);
 
   // 1. Fetch all active tickets (conversations)
   const { data: ticketsData, isLoading: ticketsLoading } = useQuery({
@@ -69,6 +72,39 @@ export const AgentMessagerie: React.FC = () => {
     if (!message.trim() || !activeTicketId) return;
     sendMutation.mutate(message);
   };
+
+  // WebSocket real-time subscription
+  useEffect(() => {
+    if (!activeTicketId) return;
+
+    const token = useAuthStore.getState().token;
+
+    const client = new Client({
+      webSocketFactory: () =>
+        new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      onConnect: () => {
+        client.subscribe(`/topic/ticket/${activeTicketId}`, () => {
+          queryClient.invalidateQueries({ queryKey: ['messages', activeTicketId] });
+        });
+        if (user?.id) {
+          client.subscribe(`/user/${user.id}/queue/notifications`, () => {
+            queryClient.invalidateQueries({ queryKey: ['messages', activeTicketId] });
+          });
+        }
+      },
+      onDisconnect: () => console.log('AgentMessagerie WS déconnecté'),
+      reconnectDelay: 5000,
+    });
+
+    client.activate();
+    stompClient.current = client;
+
+    return () => {
+      client.deactivate();
+      stompClient.current = null;
+    };
+  }, [activeTicketId, user?.id, queryClient]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

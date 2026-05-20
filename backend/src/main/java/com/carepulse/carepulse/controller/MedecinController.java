@@ -34,6 +34,15 @@ public class MedecinController {
         return ResponseEntity.ok(ApiResponse.success("Médecins de la file", response));
     }
 
+    @GetMapping("/disponibles")
+    public ResponseEntity<ApiResponse<List<MedecinResponse>>> getMedecinsDisponibles() {
+        List<Medecin> medecins = medecinRepository.findByDisponibleTrue();
+        List<MedecinResponse> response = medecins.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success("Corps médical disponible", response));
+    }
+
     @GetMapping("/moi")
     public ResponseEntity<ApiResponse<MedecinResponse>> getMedecinConnecte(@AuthenticationPrincipal User user) {
         Medecin medecin = medecinRepository.findByUserEmail(user.getEmail())

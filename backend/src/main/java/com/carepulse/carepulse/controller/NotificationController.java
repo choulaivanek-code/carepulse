@@ -21,10 +21,11 @@ public class NotificationController {
     private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<List<Notification>> getMyNotifications(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
-        return ResponseEntity.ok(notificationService.getNotificationsPourUtilisateur(user.getId()));
+    public ResponseEntity<?> getMyNotifications(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(notificationService.getMyNotifications(userDetails.getUsername()));
     }
 
     @PatchMapping("/{id}/lu")

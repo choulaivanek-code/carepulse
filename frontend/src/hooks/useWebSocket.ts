@@ -145,5 +145,12 @@ export const useWebSocket = () => {
     };
   }, [token, user, handleNewNotification, startPolling, stopPolling]);
 
-  return { connected };
+  const subscribe = useCallback((destination: string, callback: (body: string) => void) => {
+    if (!clientRef.current || !clientRef.current.connected) return null;
+    return clientRef.current.subscribe(destination, (message: Message) => {
+      callback(message.body);
+    });
+  }, []);
+
+  return { connected, subscribe };
 };

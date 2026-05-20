@@ -188,6 +188,36 @@ public class TicketService {
                 ticket.getId()
             )
         );
+
+        // 3. Notifications spécifiques aux urgences
+        if (ticket.getPriorite() == PriorityType.URGENT) {
+            // Notifier le médecin assigné
+            if (ticket.getMedecin() != null) {
+                notificationService.envoyerNotification(
+                    ticket.getMedecin().getUser().getId(),
+                    "🚨 URGENCE — Intervention requise",
+                    "Patient " + patient.getUser().getPrenom() + " " + patient.getUser().getNom()
+                        + " — " + ticket.getNumeroTicket() + " — Priorité URGENTE",
+                    com.carepulse.carepulse.enums.NotificationType.URGENCE,
+                    ticket.getId()
+                );
+            }
+
+            // Notifier les patients WAITING dans la même file (leur position va changer)
+            List<Ticket> ticketsEnAttente = ticketRepository.findByFileAttenteAndStatutIn(
+                file,
+                List.of(TicketStatus.WAITING)
+            );
+            ticketsEnAttente.stream()
+                .filter(t -> !t.getId().equals(ticket.getId()))
+                .forEach(t -> notificationService.envoyerNotification(
+                    t.getPatient().getUser().getId(),
+                    "Position mise à jour",
+                    "Un cas urgent a été ajouté — votre position dans la file a changé",
+                    com.carepulse.carepulse.enums.NotificationType.POSITION_MISE_A_JOUR,
+                    ticket.getId()
+                ));
+        }
         
         return ticket;
     }
@@ -236,37 +266,54 @@ public class TicketService {
 
     @Transactional
     public Ticket appellerPatient(Long ticketId, Long userId) {
-        Ticket suivant = ticketRepository.findById(ticketId)
+        Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket non trouvé"));
         
-        suivant.setStatut(TicketStatus.READY);
-        suivant.setHeureAppel(LocalDateTime.now());
+        // Correction 3 — Assigner automatiquement un médecin si null
+        if (ticket.getMedecin() == null && ticket.getFileAttente() != null) {
+            medecinRepository.findFirstByFileAttenteAndDisponibleTrue(ticket.getFileAttente())
+                .ifPresent(medecin -> {
+                    ticket.setMedecin(medecin);
+                    ticketRepository.save(ticket);
+                });
+        }
+
+        ticket.setStatut(TicketStatus.READY);
+        ticket.setHeureAppel(LocalDateTime.now());
         
-        ticketRepository.save(suivant);
+        ticketRepository.save(ticket);
         
+        // Correction 2 — Vérification null avant d'accéder au médecin
+        String nomMedecin = "votre médecin";
+        if (ticket.getMedecin() != null && ticket.getMedecin().getUser() != null) {
+            nomMedecin = "Dr. " + ticket.getMedecin().getUser().getNom();
+        }
+
         // Notifications
         // 1. Pour le patient
         notificationService.envoyerNotification(
-            suivant.getPatient().getUser().getId(),
+            ticket.getPatient().getUser().getId(),
             "C'est votre tour !",
-            "Présentez-vous au cabinet du Dr. " + suivant.getMedecin().getUser().getNom(),
+            "Présentez-vous au cabinet de " + nomMedecin,
             com.carepulse.carepulse.enums.NotificationType.APPEL_PATIENT,
-            suivant.getId()
+            ticket.getId()
         );
 
-        // 2. Pour le médecin
-        notificationService.envoyerNotification(
-            suivant.getMedecin().getUser().getId(),
-            "Patient prêt",
-            "Le patient " + suivant.getPatient().getUser().getPrenom() + " est prêt",
-            com.carepulse.carepulse.enums.NotificationType.PATIENT_PRET,
-            suivant.getId()
-        );
+        // 2. Pour le médecin (si assigné)
+        if (ticket.getMedecin() != null) {
+            notificationService.envoyerNotification(
+                ticket.getMedecin().getUser().getId(),
+                "Patient prêt",
+                "Le patient " + ticket.getPatient().getUser().getPrenom() + " est prêt",
+                com.carepulse.carepulse.enums.NotificationType.PATIENT_PRET,
+                ticket.getId()
+            );
+        }
 
-        webSocketService.sendTicketUpdate(suivant.getId(), "READY", 0, 0, "Vous êtes appelé en salle de consultation");
-        fileAttenteService.recalculerTousLesTemps(suivant.getFileAttente().getId());
+        webSocketService.sendTicketUpdate(ticket.getId(), "READY", 0, 0, "Vous êtes appelé en salle de consultation");
+        fileAttenteService.recalculerTousLesTemps(ticket.getFileAttente().getId());
         
-        return suivant;
+        return ticket;
     }
 
     @Transactional
@@ -274,6 +321,11 @@ public class TicketService {
         Ticket ticket = getTicketById(ticketId);
         ticket.setStatut(TicketStatus.PRESENT);
         ticket.setEstPresent(true);
+        
+        Patient patient = ticket.getPatient();
+        patient.setPointsFidelite(patient.getPointsFidelite() + 5);
+        patientRepository.save(patient);
+        
         ticketRepository.save(ticket);
     }
 
@@ -350,6 +402,10 @@ public class TicketService {
         Patient patient = ticket.getPatient();
         patient.setNombreNoShows(patient.getNombreNoShows() + 1);
         patient.setScoreFiabilite(patient.getScoreFiabilite() * 0.9);
+        
+        // Pénalité de points fidélité
+        patient.setPointsFidelite(Math.max(0, patient.getPointsFidelite() - 5));
+        
         patientRepository.save(patient);
     }
 
@@ -388,7 +444,22 @@ public class TicketService {
             TicketStatus.IN_PROGRESS
         );
         
-        return ticketRepository.findByFileAttenteAndStatutIn(medecin.getFileAttente(), statutsActifs);
+        return ticketRepository.findByFileAttenteAndStatutIn(medecin.getFileAttente(), statutsActifs)
+                .stream()
+                .sorted(java.util.Comparator
+                    .comparingInt((Ticket t) -> prioriteOrder(t.getPriorite()))
+                    .thenComparing(Ticket::getHeureCreation))
+                .collect(Collectors.toList());
+    }
+
+    private int prioriteOrder(PriorityType priorite) {
+        if (priorite == null) return 4;
+        return switch (priorite) {
+            case URGENT   -> 0;
+            case HIGH     -> 1;
+            case MODERATE -> 2;
+            case NORMAL   -> 3;
+        };
     }
 
     public Ticket getTicketById(Long id) {

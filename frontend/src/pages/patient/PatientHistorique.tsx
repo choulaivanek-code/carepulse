@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSidebarMargin } from '../../hooks/useSidebarMargin';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -7,24 +7,37 @@ import {
   Stethoscope, 
   ChevronRight,
   TrendingUp,
-  Award
+  Award,
+  Star
 } from 'lucide-react';
 import { consultationApi } from '../../api/consultationApi';
+import { patientApi } from '../../api/patientApi';
 import { useAuthStore } from '../../store/authStore';
 import { Sidebar } from '../../components/common/Sidebar';
 import { MobileNav } from '../../components/common/MobileNav';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { CompteRenduModal } from '../../components/patient/CompteRenduModal';
 
 export const PatientHistorique: React.FC = () => {
   const sidebarMargin = useSidebarMargin();
   const { user } = useAuthStore();
+  const [selectedConsultation, setSelectedConsultation] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const { data: consultationsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['patient-consultations', user?.id],
     queryFn: () => consultationApi.getByPatient(user!.id as number),
     enabled: !!user?.id,
   });
 
+  const { data: pointsData } = useQuery({
+    queryKey: ['patient-points', user?.id],
+    queryFn: () => patientApi.getPoints(),
+    enabled: !!user?.id,
+  });
+
   const consultations = consultationsData?.data?.data ?? [];
+  const pointsInfo = pointsData?.data?.data;
 
   // Stats calculation
   const totalVisits = consultations.length;
@@ -33,25 +46,61 @@ export const PatientHistorique: React.FC = () => {
   const stats = [
     { label: 'Visites totales', value: totalVisits, icon: History, color: 'text-cyan-600', bg: 'bg-cyan-50' },
     { label: 'Visites terminées', value: totalVisits, icon: Award, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Dernier médecin', value: `Dr. ${lastMedecin}`, icon: Stethoscope, color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Points fidélité', value: totalVisits * 10, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { label: 'Dernier médecin', value: lastMedecin !== '---' ? `Dr. ${lastMedecin}` : '---', icon: Stethoscope, color: 'text-violet-600', bg: 'bg-violet-50' },
+    { label: 'Niveau Fidélité', value: pointsInfo?.niveau || 'Bronze', icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
   ];
+
+  const getLevelIcon = (niveau: string) => {
+    switch (niveau) {
+      case 'Or': return '🥇';
+      case 'Argent': return '🥈';
+      default: return '🥉';
+    }
+  };
+
+  const handleOpenReport = (consultation: any) => {
+    setSelectedConsultation(consultation);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
       <main className={`flex-1 ${sidebarMargin} p-6 lg:p-10 pb-28 lg:pb-10 transition-all duration-300`}>
-        <header className="mb-12 animate-fade-in">
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight italic">
-            Mon Historique
-          </h1>
-          <p className="text-slate-500 font-medium mt-2">Retrouvez toutes vos consultations passées</p>
+        <header className="mb-12 animate-fade-in flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+              Mon Historique
+            </h1>
+            <p className="text-slate-500 font-medium mt-2">Retrouvez toutes vos consultations passées</p>
+          </div>
+
+          {pointsInfo && (
+            <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm min-w-[300px]">
+               <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                     <span className="text-2xl">{getLevelIcon(pointsInfo.niveau)}</span>
+                     <p className="text-xs font-black text-slate-900 uppercase tracking-widest">{pointsInfo.niveau}</p>
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{pointsInfo.points} Points</p>
+               </div>
+               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-3">
+                  <div 
+                    className="h-full bg-amber-400 transition-all duration-1000" 
+                    style={{ width: `${(pointsInfo.pointsVersSuivant / pointsInfo.pointsRequisSuivant) * 100}%` }}
+                  />
+               </div>
+               <p className="text-[9px] font-bold text-slate-400 italic leading-tight">
+                  {pointsInfo.messageProgression}
+               </p>
+            </div>
+          )}
         </header>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16 animate-fade-in">
           {stats.map((stat, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
+            <div key={idx} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                <div className={`w-10 h-10 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4`}>
                  <stat.icon size={20} />
                </div>
@@ -78,15 +127,18 @@ export const PatientHistorique: React.FC = () => {
               <div className="absolute top-0 bottom-0 left-[-1.5px] w-0.5 bg-slate-200" />
               
               {consultations.length === 0 ? (
-                <div className="card-premium p-10 text-center">
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">Aucune consultation enregistrée</p>
+                <div className="card-premium p-10 text-center border-dashed">
+                  <p className="text-slate-300 font-black text-xs uppercase tracking-[0.2em] italic">Aucune consultation enregistrée</p>
                 </div>
               ) : (
-                consultations.map((c, _idx) => (
+                consultations.map((c: any) => (
                   <div key={c.id} className="relative pl-10 group">
                     <div className="absolute left-[-10px] top-6 w-5 h-5 rounded-full bg-white border-4 border-cyan-600 shadow-sm z-10 group-hover:scale-125 transition-transform" />
                     
-                    <div className="card-premium p-6 hover:border-cyan-200 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+                    <div 
+                      onClick={() => handleOpenReport(c)}
+                      className="card-premium p-6 hover:border-cyan-200 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all"
+                    >
                       <div className="flex items-center gap-6">
                          <div className="text-center min-w-[60px]">
                             <p className="text-2xl font-black text-slate-900 italic tracking-tighter">
@@ -126,6 +178,12 @@ export const PatientHistorique: React.FC = () => {
             </div>
           </div>
         )}
+
+        <CompteRenduModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          consultation={selectedConsultation}
+        />
       </main>
       <MobileNav />
     </div>

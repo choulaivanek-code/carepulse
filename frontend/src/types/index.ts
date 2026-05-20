@@ -60,6 +60,9 @@ export interface Ticket {
   positionActuelle: number;
   tempsAttenteEstime: number;
   heureCreation: string;
+  heureAppel?: string;
+  heureDebut?: string;
+  heureFin?: string;
   patientNom: string;
   patientPrenom: string;
   medecinNom: string;
@@ -103,6 +106,7 @@ export interface Notification {
   type: string;
   titre: string;
   contenu: string;
+  message?: string;
   lue: boolean;
   dateCreation: string;
   ticketId: number;
@@ -114,6 +118,7 @@ export interface Consultation {
   diagnostic: string;
   traitement: string;
   examens: string;
+  observationsInternes?: string;
   dateDebut: string;
   dateFin: string;
   dureeReelle: number;

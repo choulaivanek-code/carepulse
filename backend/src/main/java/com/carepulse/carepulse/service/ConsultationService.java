@@ -106,6 +106,11 @@ public class ConsultationService {
         consultation.setDureeReelle((int) Duration.between(consultation.getDateDebut(), consultation.getDateFin()).toMinutes());
         consultationRepository.save(consultation);
 
+        // Ajout des points fidélité
+        Patient patient = ticket.getPatient();
+        patient.setPointsFidelite(patient.getPointsFidelite() + 10);
+        patientRepository.save(patient);
+
         // Notification patient
         notificationService.envoyerNotification(
             ticket.getPatient().getUser().getId(),

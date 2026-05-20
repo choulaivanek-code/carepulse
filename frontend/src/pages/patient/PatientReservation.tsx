@@ -80,19 +80,23 @@ export const PatientReservation: React.FC = () => {
     retry: 1,
   });
 
-  const { data: medecinsData } = useQuery({
-    queryKey: ['medecins', formData.fileId],
-    queryFn: () => medecinApi.getMedecinsByFile(formData.fileId!),
-    enabled: !!formData.fileId,
-  });
-
-  const medecins = medecinsData?.data?.data ?? [];
-
   const files: FileAttente[] = (filesData?.data?.data && filesData.data.data.length > 0)
     ? filesData.data.data
     : FALLBACK_SERVICES;
 
   const selectedFile = files.find(f => f.id === formData.fileId);
+
+  const isUrgence = formData.priorite === 'CRITIQUE' || selectedFile?.nom.toLowerCase().includes('urgence');
+
+  const { data: medecinsData } = useQuery({
+    queryKey: ['medecins', formData.fileId, isUrgence],
+    queryFn: () => isUrgence
+      ? medecinApi.getMedecinsDisponibles()
+      : medecinApi.getMedecinsByFile(formData.fileId!),
+    enabled: !!formData.fileId,
+  });
+
+  const medecins = medecinsData?.data?.data ?? [];
 
   // Auto-select Urgences on CRITIQUE
   React.useEffect(() => {
@@ -304,18 +308,37 @@ export const PatientReservation: React.FC = () => {
 
                           <div className="space-y-4">
                              <div className="flex items-center justify-between px-2">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Médecins rattachés</h3>
+                                <h3 className={`text-[10px] font-black uppercase tracking-widest ${
+                                  isUrgence ? 'text-red-500' : 'text-slate-400'
+                                }`}>
+                                  {isUrgence ? '🚨 Corps médical disponible pour votre urgence' : 'Médecins rattachés'}
+                                </h3>
                                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${medecins.length > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                                    {medecins.length} disponible(s)
                                 </span>
                              </div>
 
+                             {isUrgence && (
+                               <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-3 animate-fade-in">
+                                 <span className="text-xl">🚨</span>
+                                 <p className="text-xs font-bold text-red-700 leading-relaxed">
+                                   Votre cas a été marqué comme urgent — vous serez placé en tête de file
+                                 </p>
+                               </div>
+                             )}
+
                              {medecins.length > 0 ? (
                                <div className="grid grid-cols-1 gap-3">
                                   {medecins.map((doc: any) => (
-                                    <div key={doc.id} className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between group hover:border-cyan-200 transition-all">
+                                    <div key={doc.id} className={`p-4 rounded-2xl border bg-white shadow-sm flex items-center justify-between group transition-all ${
+                                      isUrgence ? 'border-red-100 hover:border-red-200' : 'border-slate-100 hover:border-cyan-200'
+                                    }`}>
                                        <div className="flex items-center gap-3">
-                                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-cyan-50 group-hover:text-cyan-600 transition-colors">
+                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                                            isUrgence
+                                              ? 'bg-red-50 text-red-500 group-hover:bg-red-100'
+                                              : 'bg-slate-100 text-slate-400 group-hover:bg-cyan-50 group-hover:text-cyan-600'
+                                          }`}>
                                              <User size={18} />
                                           </div>
                                           <div>
@@ -324,7 +347,9 @@ export const PatientReservation: React.FC = () => {
                                           </div>
                                        </div>
                                        <div className="text-right">
-                                          <div className="flex items-center justify-end gap-1 text-cyan-600 text-[10px] font-black uppercase tracking-tight">
+                                          <div className={`flex items-center justify-end gap-1 text-[10px] font-black uppercase tracking-tight ${
+                                            isUrgence ? 'text-red-500' : 'text-cyan-600'
+                                          }`}>
                                              <Clock size={10} />
                                              {doc.heureDebut.slice(0, 5)} - {doc.heureFin.slice(0, 5)}
                                           </div>
@@ -338,7 +363,7 @@ export const PatientReservation: React.FC = () => {
                              ) : (
                                <div className="p-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 text-center">
                                   <p className="text-xs text-slate-400 font-medium italic">
-                                     Les médecins seront assignés à votre arrivée
+                                     {isUrgence ? 'Aucun médecin disponible actuellement' : 'Les médecins seront assignés à votre arrivée'}
                                   </p>
                                </div>
                              )}

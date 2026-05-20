@@ -79,15 +79,30 @@ public class MessageService {
 
         MessageResponse response = mapToResponse(messageRepository.save(message));
 
-        // Notification destinataire
-        notificationService.envoyerNotification(
-            conversation.getDestinataire().getId().equals(expediteur.getId()) ? 
-                conversation.getExpediteur().getId() : conversation.getDestinataire().getId(),
-            "Nouveau message",
-            expediteur.getPrenom() + " : " + request.getContenu().substring(0, Math.min(50, request.getContenu().length())),
-            com.carepulse.carepulse.enums.NotificationType.NOUVEAU_MESSAGE,
-            ticket.getId()
-        );
+        com.carepulse.carepulse.enums.RoleType roleExpediteur = expediteur.getRole();
+        String contenu = request.getContenu();
+
+        if (roleExpediteur == com.carepulse.carepulse.enums.RoleType.PATIENT) {
+            // Notifier les agents
+            agentRepository.findAll().forEach(agent ->
+                notificationService.envoyerNotification(
+                    agent.getUser().getId(),
+                    "Nouveau message",
+                    expediteur.getPrenom() + " : " + contenu.substring(0, Math.min(50, contenu.length())),
+                    com.carepulse.carepulse.enums.NotificationType.NOUVEAU_MESSAGE,
+                    ticket.getId()
+                )
+            );
+        } else if (roleExpediteur == com.carepulse.carepulse.enums.RoleType.AGENT) {
+            // Notifier uniquement le patient
+            notificationService.envoyerNotification(
+                ticket.getPatient().getUser().getId(),
+                "Nouveau message de l'équipe médicale",
+                expediteur.getPrenom() + " : " + contenu.substring(0, Math.min(50, contenu.length())),
+                com.carepulse.carepulse.enums.NotificationType.NOUVEAU_MESSAGE,
+                ticket.getId()
+            );
+        }
 
         return response;
     }

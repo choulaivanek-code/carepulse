@@ -52,6 +52,10 @@ public class Patient {
     @Builder.Default
     private int nombreNoShows = 0;
 
+    @Column(name = "points_fidelite")
+    @Builder.Default
+    private int pointsFidelite = 0;
+
     @Column(name = "adresse")
     private String adresse;
 

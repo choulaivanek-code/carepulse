@@ -71,8 +71,8 @@ public class ConsultationController {
                 .dateDebut(c.getDateDebut())
                 .dateFin(c.getDateFin())
                 .dureeReelle(c.getDureeReelle())
-                .medecinNom(c.getMedecin().getUser().getNom())
-                .patientNom(c.getPatient().getUser().getNom())
+                .medecinNom((c.getMedecin() != null && c.getMedecin().getUser() != null) ? c.getMedecin().getUser().getNom() : "")
+                .patientNom((c.getPatient() != null && c.getPatient().getUser() != null) ? c.getPatient().getUser().getNom() : "")
                 .build();
     }
 }

@@ -57,8 +57,21 @@ export const AgentDashboard: React.FC = () => {
     },
   });
 
-  const tickets = ticketsData?.data?.data ?? [];
+  const rawTickets = ticketsData?.data?.data ?? [];
   const stats = statsData?.data?.data;
+
+  const PRIORITE_ORDER: Record<string, number> = {
+    URGENT: 0,
+    HIGH: 1,
+    MODERATE: 2,
+    NORMAL: 3,
+  };
+
+  const tickets = [...rawTickets].sort(
+    (a, b) => (PRIORITE_ORDER[a.priorite] ?? 3) - (PRIORITE_ORDER[b.priorite] ?? 3)
+  );
+
+  const urgentsEnAttente = tickets.filter(t => t.priorite === 'URGENT');
 
   const kpis = [
     {
@@ -131,6 +144,19 @@ export const AgentDashboard: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Urgence Banner */}
+        {urgentsEnAttente.length > 0 && (
+          <div className="bg-red-500 rounded-[32px] mb-8 px-8 py-5 flex items-center justify-between animate-pulse animate-fade-in">
+            <div className="flex items-center gap-4">
+              <span className="text-2xl">⚠️</span>
+              <p className="text-white font-black text-sm tracking-tight">
+                {urgentsEnAttente.length} cas urgent{urgentsEnAttente.length > 1 ? 's' : ''} en attente — intervention prioritaire requise
+              </p>
+            </div>
+            <span className="text-white/70 text-[10px] font-black uppercase tracking-widest">URGENT</span>
+          </div>
+        )}
 
         {/* ALERTS */}
         {stats?.tauxOccupation && stats.tauxOccupation > 80 && (

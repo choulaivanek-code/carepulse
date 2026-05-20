@@ -5,7 +5,7 @@ export const consultationApi = {
   demarrer: (ticketId: number) => 
     api.post<ApiResponse<Consultation>>(`consultations/demarrer/${ticketId}`),
     
-  updateContenu: (ticketId: number, data: { symptomes?: string, diagnostic?: string, traitement?: string, examens?: string }) => 
+  updateContenu: (ticketId: number, data: { symptomes?: string, diagnostic?: string, traitement?: string, examens?: string, observationsInternes?: string }) => 
     api.put<ApiResponse<Consultation>>(`consultations/${ticketId}/contenu`, data),
     
   cloturer: (ticketId: number) => 

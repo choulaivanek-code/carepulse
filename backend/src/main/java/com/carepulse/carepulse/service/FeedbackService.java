@@ -50,6 +50,10 @@ public class FeedbackService {
                 .modere(false)
                 .build();
 
+        // Bonus points fidélité
+        patient.setPointsFidelite(patient.getPointsFidelite() + 5);
+        patientRepository.save(patient);
+
         return feedbackRepository.save(feedback);
     }
 

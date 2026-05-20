@@ -67,6 +67,12 @@ public class NotificationService {
         return notificationRepository.findTop20ByUserOrderByDateCreationDesc(user);
     }
 
+    public List<Notification> getMyNotifications(String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        return notificationRepository.findTop20ByUserOrderByDateCreationDesc(user);
+    }
+
     @Transactional
     public void marquerCommeLue(Long notificationId) {
         Notification notif = notificationRepository.findById(notificationId)
