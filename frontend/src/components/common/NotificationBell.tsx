@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, CheckCheck, Loader2, Clock, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -10,7 +10,7 @@ export const NotificationBell: React.FC = () => {
   const navigate = useNavigate();
   const { notifications, unreadCount, setNotifications, markAsRead, markAllAsRead } = useNotificationStore();
 
-  const { data: notifData, isLoading, refetch } = useQuery({
+  const { data: notifData, isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationApi.getNotifications(),
     enabled: !!isOpen, // Fetch when opened

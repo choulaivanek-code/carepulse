@@ -7,8 +7,7 @@ import {
   Stethoscope, 
   ChevronRight,
   TrendingUp,
-  Award,
-  Star
+  Award
 } from 'lucide-react';
 import { consultationApi } from '../../api/consultationApi';
 import { patientApi } from '../../api/patientApi';

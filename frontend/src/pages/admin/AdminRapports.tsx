@@ -10,8 +10,6 @@ import {
   Clock, 
   TrendingUp,
   AlertCircle,
-  BarChart4,
-  PieChart as PieChartIcon,
   Activity,
   User as UserIcon
 } from 'lucide-react';
@@ -44,7 +42,7 @@ export const AdminRapports: React.FC = () => {
     return { jours: parseInt(periode) };
   }, [periode, customRange]);
 
-  const { data: rapportsResponse, isLoading, isError } = useQuery({
+  const { data: rapportsResponse, isLoading } = useQuery({
     queryKey: ['rapports', queryParams],
     queryFn: () => statsApi.getRapports(queryParams),
     enabled: periode !== 'custom' || (!!customRange.debut && !!customRange.fin),

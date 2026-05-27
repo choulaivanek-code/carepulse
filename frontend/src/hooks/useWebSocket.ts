@@ -115,7 +115,7 @@ export const useWebSocket = () => {
 
         // Optional: subscribe to other relevant channels based on role
         if (user.role === 'AGENT' || user.role === 'ADMIN') {
-          client.subscribe('/topic/tickets', (message: Message) => {
+          client.subscribe('/topic/tickets', (_message: Message) => {
              // Handle generic ticket updates if needed
           });
         }

@@ -30,8 +30,6 @@ export const MedecinConsole: React.FC = () => {
   const [tempsEcoule, setTempsEcoule] = useState(0);
   const notifications = useNotificationStore(s => s.notifications);
 
-  const PRIORITE_ORDER: Record<string, number> = { URGENT: 0, HIGH: 1, MODERATE: 2, NORMAL: 3 };
-
   const jouerAlerte = () => {
     try {
       const ctx = new AudioContext();

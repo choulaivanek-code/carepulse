@@ -15,10 +15,10 @@ export const useNotifications = () => {
   });
 
   useEffect(() => {
-    if (data?.data?.data) {
-      setNotifications(data.data.data);
+    if (data?.data) {
+      setNotifications(data.data);
     }
   }, [data, setNotifications]);
 
-  return { notifications: data?.data?.data ?? [], refetch };
+  return { notifications: data?.data ?? [], refetch };
 };
