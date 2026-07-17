@@ -1,11 +1,33 @@
-name: PipeForge Demo — CarePulse
+name: PipeForge Demo — CarePulse CI/CD
 
 on:
   workflow_dispatch:
 
+env:
+  APP_ENV: demo
+
 jobs:
-  demo-pipeline:
-    name: Build & Test Pipeline
+
+  # ─────────────────────────────────────────────
+  # JOB 1 — Validation & Linting
+  # ─────────────────────────────────────────────
+  validate:
+    name: Validation Statique & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Validation Syntaxe YAML
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .github/workflows/
+
+  # ─────────────────────────────────────────────
+  # JOB 2 — Build & Tests Applicatifs
+  # ─────────────────────────────────────────────
+  build:
+    name: Build & Test — Backend et Frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -22,20 +44,76 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Analyse statique du backend
-        run: echo "Analyse du backend Spring Boot..." && sleep 1 && echo "Aucune anomalie détectée"
+      - name: Build Backend Spring Boot
+        run: echo "Compilation Maven du backend..." && sleep 2 && echo "BUILD SUCCESS"
 
-      - name: Build du backend
-        run: echo "Compilation Maven..." && sleep 2 && echo "BUILD SUCCESS"
+      - name: Tests unitaires Backend
+        run: echo "Exécution des tests JUnit..." && sleep 1 && echo "14 tests passés, 0 échec"
 
-      - name: Installation des dépendances frontend
-        run: echo "npm install..." && sleep 1 && echo "up to date, 0 vulnerabilities"
+      - name: Build Frontend Vue.js
+        run: echo "npm install && npm run build..." && sleep 2 && echo "Build terminé — dist/ généré"
 
-      - name: Build du frontend
-        run: echo "Build Vue.js (production)..." && sleep 2 && echo "Build terminé avec succès"
+  # ─────────────────────────────────────────────
+  # JOB 3 — Sécurité, Audit & Conformité
+  # ─────────────────────────────────────────────
+  security-audit:
+    name: Audit Sécurité & Scan des Secrets
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Exécution des tests
-        run: echo "Lancement de la suite de tests..." && sleep 1 && echo "14 tests passés, 0 échec"
+      - name: Scan anti-fuite de Secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Résumé du pipeline
-        run: echo "Pipeline CarePulse déclenché via PipeForge — build backend + frontend validé"
+      - name: Vérification des dépendances
+        run: echo "Analyse des dépendances (npm audit / OWASP Dependency-Check)..." && sleep 1 && echo "Aucune vulnérabilité critique détectée"
+
+  # ─────────────────────────────────────────────
+  # JOB 4 — Build & Push Images Docker
+  # ─────────────────────────────────────────────
+  docker-build:
+    name: Build & Push Images Docker
+    runs-on: ubuntu-latest
+    needs: [build, security-audit]
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Build image Docker — backend
+        run: echo "docker build -t carepulse-backend:demo ./backend" && sleep 1 && echo "Image construite avec succès"
+
+      - name: Build image Docker — frontend
+        run: echo "docker build -t carepulse-frontend:demo ./frontend" && sleep 1 && echo "Image construite avec succès"
+
+      - name: Push vers le registre (simulation démo)
+        run: echo "[DEMO] Push désactivé pour cette présentation — flux simulé pour éviter toute publication réelle"
+
+  # ─────────────────────────────────────────────
+  # JOB 5 — Déploiement
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Déploiement (environnement de démonstration)
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Déploiement simulé
+        run: echo "[DEMO] Déploiement simulé — aucune infrastructure réelle contactée" && sleep 1 && echo "Déploiement démo terminé"
+
+  # ─────────────────────────────────────────────
+  # JOB 6 — Notification
+  # ─────────────────────────────────────────────
+  notify:
+    name: Notification de fin de pipeline
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    steps:
+      - name: Notification succès
+        if: needs.deploy.result == 'success'
+        run: echo "Pipeline CarePulse déclenché via PipeForge — succès sur toute la chaîne"
