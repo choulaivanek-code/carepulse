@@ -1,6 +1,7 @@
+---
 name: PipeForge Demo — CarePulse CI/CD
 
-on:
+"on":
   workflow_dispatch:
 
 env:
@@ -22,6 +23,7 @@ jobs:
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: .github/workflows/
+          config_file: .yamllint.yml
 
   # ─────────────────────────────────────────────
   # JOB 2 — Build & Tests Applicatifs
