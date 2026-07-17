@@ -1,0 +1,11 @@
+name: PipeForge Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Demo
+        run: echo "Pipeline declenche depuis PipeForge pour CarePulse"
